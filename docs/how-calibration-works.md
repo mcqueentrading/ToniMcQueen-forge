@@ -200,17 +200,18 @@ surprises:
 
 | Profile | What it is |
 |---|---|
-| `MESH_DATA` | the factory mesh, probed before the printer shipped. This is what a print loads unless told otherwise |
+| `MESH_DATA` | the factory mesh, probed before the printer shipped. Older startup paths loaded this unless told otherwise |
 | `default` | the working profile `BED_MESH_CALIBRATE` writes into |
 
-`START_PRINT` loads `MESH_DATA` on every print. Given `LEVEL=1` it instead
-probes a fresh mesh — dropping acceleration to 2000 for the probing run and
-putting it back afterwards — and loads `default`.
+On the local full-colour branch, `START_PRINT` does not blindly load
+`MESH_DATA`. Given `LEVEL=1` it probes a fresh mesh — dropping acceleration to
+2000 for the probing run and putting it back afterwards — and loads `default`.
+Given `MESH=<profile>`, it loads that named mesh. If neither is supplied, it
+leaves the current active mesh alone.
 
-The consequence catches people out: probing a mesh by hand leaves it in
-`default`, which the automatic path never loads. To make your own mesh the
-one prints use, it has to be saved over `MESH_DATA` — see
-[Bed mesh](bed-mesh.md).
+That is intentional for modified machines and flipped build plates: probe or
+load the mesh you trust, then do not let old startup code silently restore
+`MESH_DATA`.
 
 ## Input shaping
 

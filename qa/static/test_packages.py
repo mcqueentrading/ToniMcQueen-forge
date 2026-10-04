@@ -27,15 +27,11 @@ The format itself was verified against real apk-tools 3.0.7 -- our own
 cross-built mipsel binary, under qemu, building, installing, verifying and
 removing packages on the printer. docs/notes/85-packaging.md records that run.
 """
-import gzip
 import hashlib
-import io
 import os
-import pathlib
 import re
 import shutil
 import subprocess
-import tarfile
 
 import pytest
 
@@ -154,7 +150,7 @@ def _walk(path):
     `files:` list under it. So a full path is the directory plus the file name,
     and nothing here has to know what the prefix is.
     """
-    out, cwd, name, indent = [], None, None, 0
+    out, cwd, name = [], None, None
     for line in _dump(path).splitlines():
         stripped = line.strip()
         pad = len(line) - len(line.lstrip())

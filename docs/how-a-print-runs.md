@@ -58,8 +58,11 @@ Mainsail, HelixScreen, OrcaSlicer — anything that speaks Moonraker
   └─ [ff_print] wraps SDCARD_PRINT_FILE and M23
         │   reads bed, nozzle, first tool and first-layer height from the file
         │
-        ├─ FF_BEFORE_PRINT_START ─┬─► _FF_PREFLIGHT  calibration + tool gate
-        │                         └─► START_PRINT    the preparation sequence
+        ├─ FF_BEFORE_PRINT_START ───► _FF_PREFLIGHT  calibration + tool gate
+        │
+        ├─ slicer/operator ─────────► START_PRINT     explicit preparation
+        │
+        ├─ optional operator ───────► REFORGE_PREFLIGHT standalone purge/check
         ▼
      Klipper streams the file
         │
@@ -72,7 +75,9 @@ Mainsail, HelixScreen, OrcaSlicer — anything that speaks Moonraker
 
 The shape is the same. The difference is that every box in the second diagram
 is a Klipper macro or a Klipper extra, and every box in the first was inside
-one binary.
+one binary. On this local full-colour branch, automatic prepare is disabled by
+default so old wrapper logic cannot fight a manual preflight or reload a stale
+mesh.
 
 Step by step, with the app's own sequence, the fork code that makes a
 Mainsail print hang, and what `START_PRINT` actually sends:
@@ -97,18 +102,16 @@ If your own profile already calls `START_PRINT`, or homes for itself:
 variable_prepare: 0
 ```
 
-Preparing twice misplaces nothing — the Z offset and `T<n>` are both
-idempotent — but it re-homes and re-purges every tool for no reason. A
-profile that runs its own `G28` **needs** this off: our `G28` docks a mounted
-tool before homing Z, so it would dock the tool preparation just grabbed and
-print with an empty carriage.
+This local branch ships that value as the default. Preparing twice misplaces
+nothing — the Z offset and `T<n>` are both idempotent — but it re-homes,
+re-purges, and can replace the mesh the operator intended to use.
 
 ### Drive the sequence from the slicer
 
 With `prepare: 0`, call it yourself from Machine start G-code:
 
 ```gcode
-START_PRINT TOOLS=0:220,2:240 BED=60 LEVEL=1 SOAK=300
+START_PRINT TOOLS=0:220,2:240 BED=60 LEVEL=0 MESH=flipped_bed_20261004 SOAK=0
 ```
 
 | Parameter | Does |
@@ -117,7 +120,16 @@ START_PRINT TOOLS=0:220,2:240 BED=60 LEVEL=1 SOAK=300
 | `BED=`, `NOZZLE=`, `LAYER=` | the print's bed, nozzle and first-layer height |
 | `CLEAN=0` | skip the pre-print purge and wipe |
 | `LEVEL=1` | probe a fresh mesh instead of loading the saved one |
+| `MESH=<profile>` | load that named mesh; if omitted with `LEVEL=0`, keep the current active mesh |
 | `SOAK=<seconds>` | dwell after the bed reaches target. The app waited 5 minutes; the default here is 0 |
+
+For standalone purge/check before a print, use:
+
+```gcode
+REFORGE_PREFLIGHT BED=55 TOOL=0 NOZZLE=220 TOOLS=0:220,1:220,2:220,3:220 PURGE_LENGTH=150 PARK=1
+```
+
+That macro does not call `START_PRINT` and does not touch the bed mesh.
 
 ---
 

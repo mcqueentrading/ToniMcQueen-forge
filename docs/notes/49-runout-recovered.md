@@ -76,16 +76,17 @@ The load pages (`FilamentLoad`, `LoadFilamentPrint`) never touch the sensors.
 `runout_motion_prefix: fm_ex`; empty or absent sections = that kind off, partial = config
 error):
 
-* grab verified → every sensor off, motion sensor of the new tool reset (the app's
-  `RESET_FILAMENT_SENSOR` — a sensor that sat disabled while its extruder moved would fire
-  the moment it is enabled), then that tool's switch + motion sensor on. The app does this
-  3 s later from a thread; here the grab moves are already complete. Same-tool re-select
-  re-arms.
+* grab verified → every sensor for non-mounted tools off, then the mounted tool's hard
+  switch sensor on. Motion/clog sensors are deliberately not armed on grab; load, purge,
+  wipe and preflight extrusion can otherwise leave stale runout positions and fake clogs.
+  Start/toolchange profile policy arms motion later with `REFORGE_ARM_MOTION_SENSOR`, which
+  resets the motion sensor first. Same-tool re-select re-arms switch-only.
 * release (and so `TOOLCHANGE_PARK` / `UNSELECT_TOOL` / print end) → everything off,
   before any motion — as `changeExtruderChannel` does.
 * `klippy:ready` mirrors whatever the dock switches say is mounted.
-* `FF_RUNOUT_ARM [TOOL=]` / `FF_RUNOUT_DISARM`; status `runout_armed` (tool or −1),
-  `runout_sensors` (object names); `TOOLCHANGE_STATUS` prints the same.
+* `FF_RUNOUT_ARM [TOOL=] [SWITCH=1] [MOTION=0]` / `FF_RUNOUT_DISARM [MOTION_ONLY=1]`;
+  status exposes `runout_armed`, `runout_switch_armed`, `runout_motion_armed`, and
+  `runout_sensors`; `TOOLCHANGE_STATUS` prints the same policy.
 
 `pkgs/klipper-config/payload/config/ff-runout.cfg` (include after `printer.base.cfg`; Klipper merges repeated sections,
 later options win — the stock `printer.filament.cfg` is left untouched):
@@ -93,11 +94,11 @@ later options win — the stock `printer.filament.cfg` is left untouched):
 * the eight sections get `runout_gcode: _FF_RUNOUT TOOL=n KIND=switch|motion` and
   `insert_gcode: _FF_INSERT …`, `pause_on_runout` stays `False`.
 * `_FF_RUNOUT`: ignores the event unless `print_stats.state == printing`, not paused, and
-  `TOOL` is `ff_toolchange.current_tool`; then `PAUSE`, `M117 T<n> clog` or
-  `M117 T<n> out of filament` (the app's E0162/E0163 codes are not emitted) and a console
-  line telling the user to `LOAD_FILAMENT TOOL=n` (its paused path is the app's in-print
-  feed: `E100`, `E-5`) and `RESUME`. `_FF_RUNOUT_CFG` `clog_pause` is the app's `plugCheck`
-  (0 = report a clog, don't pause); `switch_pause` has no app equivalent.
+  `TOOL` is `ff_toolchange.current_tool`. Switch runout pauses immediately with
+  `M117 T<n> out of filament`. Motion/clog faults are confirmed by repeated events:
+  first fault warns, `motion_pause_after` faults pause with `M117 T<n> clog`.
+  `_FF_RUNOUT_CFG` `clog_pause` is the app's `plugCheck` (0 = report a clog, don't pause);
+  `switch_pause` has no app equivalent.
 * `_FF_INSERT`: a hint only (`LOAD_FILAMENT TOOL=n`, plus `RESUME` when paused on that
   tool). Klipper fires insert events only while idle, so it never interrupts a print.
 

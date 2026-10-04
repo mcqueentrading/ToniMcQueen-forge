@@ -873,11 +873,10 @@ class FFToolOffset:
         machine coordinates and the nozzle's Z trigger height. The offsets
         table mirrors ff_toolchange._derive_offsets exactly: X/Y are
         differences against the toolchanger's base tool (offset_base,
-        default T0), and Z is the ABSOLUTE offset every grab applies when a
-        station calibration exists -- z_adjust + (nozzle_z - station_z),
-        the tool's nozzle-to-eddy-trigger gap -- falling back to the
-        base-relative form without one. The base tool's dX/dY are zero by
-        definition; its Z is not."""
+        default T0), and Z is the per-tool z_adjust only. The measured
+        nozzle_z - station_z gap is reported separately as calibration audit
+        data; it is not a per-move print offset. The base tool's dX/dY are
+        zero by definition."""
         base_tool = (self.toolchange.offset_base
                      if self.toolchange is not None else 0)
         lines = []
@@ -892,21 +891,18 @@ class FFToolOffset:
             base_nozzle = self.tools[base_tool].nozzle
         z_station = self.station[2] if self.station is not None else None
         if base_nozzle is not None:
-            lines.append("offsets a toolchange applies (X/Y vs T%d; Z %s):"
-                         % (base_tool,
-                            "absolute: nozzle_z - station_z + z_adjust"
-                            if z_station is not None
-                            else "vs T%d, + z_adjust" % base_tool))
+            lines.append("offsets a toolchange applies (X/Y vs T%d;"
+                         " Z z_adjust only):" % base_tool)
             for tool, (center_x, center_y, z_trigger) in sorted(
                     results.items()):
                 z_adjust = self.tools[tool].z_adjust
+                line = "  T%d: dX %+.4f  dY %+.4f  Z %+.4f" % (
+                    tool, center_x - base_nozzle[0],
+                    center_y - base_nozzle[1], z_adjust)
                 if z_station is not None:
-                    z_applied = z_adjust + (z_trigger - z_station)
-                else:
-                    z_applied = z_adjust + (z_trigger - base_nozzle[2])
-                lines.append("  T%d: dX %+.4f  dY %+.4f  Z %+.4f"
-                             % (tool, center_x - base_nozzle[0],
-                                center_y - base_nozzle[1], z_applied))
+                    line += "  calibrated_gap %+.4f" % (
+                        z_trigger - z_station)
+                lines.append(line)
         gcmd.respond_info("\n".join(lines))
 
     def get_status(self, eventtime):

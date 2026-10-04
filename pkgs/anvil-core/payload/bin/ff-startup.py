@@ -116,6 +116,10 @@ BOARDS = {
 }
 
 TITLE = 'REFORGE IS STARTING'
+BOOT_TITLE_FILES = (
+    '/usr/data/anvil-data/config/boot-screen.conf',
+    '/usr/data/anvil/config/boot-screen.conf',
+)
 PLEASE_WAIT = 'PLEASE WAIT'
 KEEP_POWER = 'DO NOT TURN THE PRINTER OFF'
 RETRY = 'STARTUP WILL RETRY ON NEXT BOOT'
@@ -139,6 +143,7 @@ class Panel:
 
     def __init__(self, device=None, geometry=None, enabled=True):
         self.screen = None
+        self.title = boot_title()
         if not enabled or ffscreen is None:
             return
         try:
@@ -162,7 +167,7 @@ class Panel:
         if self.screen is None:
             return
         try:
-            self.screen.show(TITLE, status, note, progress, detail, fault)
+            self.screen.show(self.title, status, note, progress, detail, fault)
         except Exception as exc:
             log('the boot screen stopped working (%s) -- carrying on' % exc)
             self.screen = None
@@ -275,6 +280,32 @@ def any_calibrated(tools):
 def board_name(key):
     """A serial port or a klipper mcu name -> something a person can act on."""
     return BOARDS.get(key, str(key).upper())
+
+
+def boot_title():
+    """Return the boot-screen title, allowing a persistent local override.
+
+    The file format is deliberately tiny: either a bare first line or
+    BOOT_TITLE=... / TITLE=.... Unsupported glyphs are harmlessly blanked by
+    ffscreen.py, so this parser only rejects empty or absurdly long values.
+    """
+    for path in BOOT_TITLE_FILES:
+        try:
+            with open(path) as fh:
+                for raw in fh:
+                    line = raw.strip()
+                    if not line or line.startswith('#'):
+                        continue
+                    if '=' in line:
+                        key, value = line.split('=', 1)
+                        if key.strip() not in ('BOOT_TITLE', 'TITLE'):
+                            continue
+                        line = value.strip().strip('"').strip("'")
+                    if 0 < len(line) <= 64:
+                        return line
+        except OSError:
+            pass
+    return TITLE
 
 
 def hand_over_boards(panel, timeout, progress_base=0.12):

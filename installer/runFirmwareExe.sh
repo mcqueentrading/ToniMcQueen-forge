@@ -503,6 +503,65 @@ sync
 find /usr/prog/klipper/klippy -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null
 sync
 
+# ---- persistent ssh host keys ---------------------------------------------
+# Stock dropbear is started by FlashForge's own init script. On this printer,
+# its default host-key location can be volatile, which makes OpenSSH warn that
+# the host identity changed after normal firmware/mod work. Put host keys under
+# /usr/data and remove the stock -R auto-generate flag, so the same host keys
+# are used after normal reboots and reflashes.
+DROPBEAR_KEY_DIR=/usr/data/dropbear
+mkdir -p "$DROPBEAR_KEY_DIR" 2>/dev/null
+chmod 700 "$DROPBEAR_KEY_DIR" 2>/dev/null || true
+
+if [ ! -s "$DROPBEAR_KEY_DIR/dropbear_rsa_host_key" ] && command -v dropbearkey >/dev/null 2>&1; then
+    dropbearkey -t rsa -f "$DROPBEAR_KEY_DIR/dropbear_rsa_host_key" >/dev/null 2>&1 || true
+fi
+if [ ! -s "$DROPBEAR_KEY_DIR/dropbear_ecdsa_host_key" ] && command -v dropbearkey >/dev/null 2>&1; then
+    dropbearkey -t ecdsa -f "$DROPBEAR_KEY_DIR/dropbear_ecdsa_host_key" >/dev/null 2>&1 || true
+fi
+
+if [ -s "$DROPBEAR_KEY_DIR/dropbear_rsa_host_key" ] || [ -s "$DROPBEAR_KEY_DIR/dropbear_ecdsa_host_key" ]; then
+    mkdir -p /etc/default 2>/dev/null || true
+    DROPBEAR_KEY_ARGS=""
+    if [ -s "$DROPBEAR_KEY_DIR/dropbear_rsa_host_key" ]; then
+        DROPBEAR_KEY_ARGS="-r $DROPBEAR_KEY_DIR/dropbear_rsa_host_key"
+    fi
+    if [ -s "$DROPBEAR_KEY_DIR/dropbear_ecdsa_host_key" ]; then
+        if [ -n "$DROPBEAR_KEY_ARGS" ]; then
+            DROPBEAR_KEY_ARGS="$DROPBEAR_KEY_ARGS -r $DROPBEAR_KEY_DIR/dropbear_ecdsa_host_key"
+        else
+            DROPBEAR_KEY_ARGS="-r $DROPBEAR_KEY_DIR/dropbear_ecdsa_host_key"
+        fi
+    fi
+    {
+        echo '# Reforge local: keep SSH host identity stable across normal reboot.'
+        printf 'DROPBEAR_ARGS="%s"\n' "$DROPBEAR_KEY_ARGS"
+    } > /etc/default/dropbear 2>/dev/null || echo "!! could not write /etc/default/dropbear"
+    chmod 600 "$DROPBEAR_KEY_DIR"/dropbear_*_host_key 2>/dev/null || true
+    echo "ssh host keys configured under $DROPBEAR_KEY_DIR"
+
+    # FlashForge's stock init can pass -R to dropbear, which tells it to
+    # auto-generate host keys. Strip that flag and append our persistent key
+    # arguments if the init script does not read /etc/default/dropbear.
+    for _dropbear_init in /etc/init.d/S50dropbear /usr/prog/etc/init.d/S50dropbear; do
+        [ -f "$_dropbear_init" ] || continue
+        cp "$_dropbear_init" "$_dropbear_init.anvil-before-persistent-hostkeys" 2>/dev/null || true
+        sed \
+            -e 's/[[:space:]]-R\([[:space:]]\|$\)/\1/g' \
+            -e "s#[[:space:]]-r[[:space:]]$DROPBEAR_KEY_DIR/dropbear_rsa_host_key##g" \
+            -e "s#[[:space:]]-r[[:space:]]$DROPBEAR_KEY_DIR/dropbear_ecdsa_host_key##g" \
+            -e "s#dropbear \([^\"']*\)#dropbear \1 $DROPBEAR_KEY_ARGS#" \
+            "$_dropbear_init" > "$_dropbear_init.anvil-new" 2>/dev/null &&
+            mv "$_dropbear_init.anvil-new" "$_dropbear_init" 2>/dev/null &&
+            chmod +x "$_dropbear_init" 2>/dev/null || true
+    done
+    unset _dropbear_init
+    unset DROPBEAR_KEY_ARGS
+else
+    echo "!! dropbear host keys not configured -- no dropbearkey or key generation failed"
+fi
+sync
+
 # ---- the root password ------------------------------------------------------
 # Two ways in, and both end at the same place: this script edits
 # /usr/prog/etc/shadow on the machine. (/etc is a bind mount of /usr/prog/etc,

@@ -7,6 +7,7 @@
 # the result to a PNG with nothing but the standard library.
 #
 #     ./bin/preview-boot-screen.py [--out DIR] [--size 480x800@32]
+#                                  [--title TEXT]
 #
 # The default size is the real one: the framebuffer is PORTRAIT 480x800 and
 # the panel is that buffer turned 90 degrees clockwise, so what is written
@@ -128,6 +129,8 @@ def main(argv):
         help='the FRAMEBUFFER, not the panel (default: the real one)')
     parser.add_argument('--rotate', type=int, default=None,
                         choices=[0, 90, 270])
+    parser.add_argument('--title', default="ToniMcQueen's Forge",
+                        help='boot-screen title text to render')
     args = parser.parse_args(argv)
 
     ffscreen = load_ffscreen()
@@ -154,7 +157,7 @@ def main(argv):
         calibration = name in ('importing', 'saving', 'restarting')
         note = ('' if (name in NO_NOTE or detail) else
                 'DO NOT TURN THE PRINTER OFF' if calibration else 'PLEASE WAIT')
-        screen.show('REFORGE IS STARTING', status, note, progress,
+        screen.show(args.title, status, note, progress,
                     detail, bool(detail))
         with open(fb, 'rb') as fh:
             buf = fh.read()

@@ -12,18 +12,17 @@
 #                    tool's nozzle, raw machine coords, G-code offset zeroed.
 #                    Written as a triple by TOOL_CALIBRATE_TOOL_OFFSET; all
 #                    three or none.
-#   z_adjust         USER CORRECTION, added on top of the measured difference
+#   z_adjust         USER CORRECTION, the only per-tool Z correction applied
 #                    at every grab. Klipper's own babystep is global, so this
-#                    is the only per-tool one. Set with TOOL_Z_ADJUST.
+#                    is the per-tool trim. Set with TOOL_Z_ADJUST.
 #
 # Offsets applied on a grab (ff_toolchange):
 #   X = nozzle_x[tool] - nozzle_x[base]        DIFFERENCE against a base tool
 #   Y = nozzle_y[tool] - nozzle_y[base]
-#   Z = nozzle_z[tool] - station_z + z_adjust[tool]   ABSOLUTE: raw eddy frame
-#                                               -> bed frame (~+3.2 mm)
-# Absolute values are stored, so recalibrating one tool leaves the others
-# valid. Applying nozzle_z - station_z at every grab means Z=0 is the bed
-# whenever a tool is mounted, not only after TOOLCHANGE_SET_PRINT_OFFSET.
+#   Z = z_adjust[tool]
+# Absolute nozzle/station measurements are stored, so recalibrating one tool
+# leaves the others valid. The measured nozzle_z - station_z gap is kept for
+# plausibility checks and reports, but it is not added to every print move.
 
 import logging
 

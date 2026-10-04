@@ -80,6 +80,7 @@ Files ending `-recovered` are reconstructions of the stock app's behaviour; the 
 - `50a-nozzle-clean-recovered.md` / `50b-nozzle-clean-port.md` — the pre-print nozzle clean
 - `51-pa-calibration-recovered.md` — automatic pressure advance: the sweep, and how to port it
 - `53-filament-slot-metadata.md` — how a spool's material and colour reach OrcaSlicer, through Moonraker's `lane_data`
+- `54-api-and-preflight-hardening.md` — 2026-10-01 API faults, partial preflight observation, and fork hardening plan
 - `60-background.md` — filament system, calibration flows, config keys (background context)
 - `70-error-codes.md` — full E-code table (behavioral spec)
 - `80-s6-migration.md` — the prefix root and s6 supervision plan

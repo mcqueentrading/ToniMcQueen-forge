@@ -75,7 +75,7 @@ splash() {
     [ -f $MODDIR/bin/ffscreen.py ] || return 0
     "$FF_PYTHON" $MODDIR/bin/ffscreen.py "$@" 2>/dev/null || true
 }
-splash --title "REFORGE IS STARTING" --status "LAUNCHING SERVICES" \
+splash --title "ToniMcQueen's Forge" --status "LAUNCHING SERVICES" \
        --note "PLEASE WAIT" --progress 0.02
 
 # ---- the supervision tree ------------------------------------------------

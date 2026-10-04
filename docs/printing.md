@@ -27,7 +27,8 @@ call in Machine start G-code and set
 `SET_GCODE_VARIABLE MACRO=FF_BEFORE_PRINT_START VARIABLE=prepare VALUE=0`
 so the machine is not prepared twice.
 
-Leave **Change filament G-code** empty. With no custom block Orca emits its
+Leave **Change filament G-code** empty for conservative single-tool/stock-wrapper
+profiles. With no custom block Orca emits its
 own bare `Tn` at each tool change, which reaches `ff_toolchange.py` directly.
 Older instructions here asked for a `T[next_extruder] ; ff-toolchange` line to
 dodge a trap in FlashForge's Klipper fork; we ship upstream `virtual_sdcard`
@@ -141,11 +142,12 @@ Without the app nothing would happen. `payload/klipper/config/ff-runout.cfg` res
 sensor sections (Klipper merges repeated sections, later options win — the
 stock `printer.filament.cfg` stays untouched and OTA-safe) so that
 `runout_gcode` calls `_FF_RUNOUT`, and `ff_toolchange` arms the mounted
-tool's two sensors on every grab, disarms everything on release, and
-re-arms on `RESUME` (the app's `setFilamentWheelManager`).
+tool's hard switch sensor on every grab. Motion/clog detection is soft and
+print-scoped: start/toolchange G-code calls `REFORGE_ARM_MOTION_SENSOR` after
+purge/heat, and `LOAD_FILAMENT`/`PURGE` paths keep motion sensors disabled.
 
-Flow: sensor fires while an SD print is running and the sensor belongs to
-the mounted tool → `PAUSE`, `T<n> out of filament` / `T<n> clog` on the
+Flow for hard switch runout: sensor fires while an SD print is running and the
+sensor belongs to the mounted tool → `PAUSE`, `T<n> out of filament` on the
 display and console → fix the filament → `LOAD_FILAMENT TOOL=n` (its paused
 path is the app's in-print feed: 100 mm, then 5 mm back) → `RESUME`.
 Sensors of tools that are not mounted never fire, and nothing fires
@@ -153,8 +155,10 @@ outside a print. `TOOLCHANGE_STATUS` shows which sensors are armed;
 `FF_RUNOUT_ARM [TOOL=n]` / `FF_RUNOUT_DISARM` do it by hand. Clog pausing
 can be made report-only, as the app's `plugCheck` toggle did:
 `SET_GCODE_VARIABLE MACRO=_FF_RUNOUT_CFG VARIABLE=clog_pause VALUE=0`.
+With `clog_pause=1`, motion/clog faults warn first and pause only after
+`motion_pause_after` repeated events.
 
-The pause is immediate, as the app's was. Note that the runout switch is
+Switch pause is immediate, as the app's was. Note that the runout switch is
 upstream of the extruder gear with a long PTFE run in between (~600 mm
 here), so the head still holds that much printable filament when the print
 stops — it is lost. Printing on and pausing once that length has been

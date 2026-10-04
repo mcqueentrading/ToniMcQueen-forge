@@ -135,8 +135,9 @@ class _ToolView:
                 'fan': toolchanger.part_fan,
                 # What the per-tool frame applies while this tool is
                 # mounted (upstream's names). Derived, not stored: X/Y are
-                # differences against the base tool, Z is absolute and
-                # already carries z_adjust -- see _derive_offsets.
+                # differences against the base tool. Z is only the operator's
+                # per-tool z_adjust; the nozzle-to-station calibration gap is
+                # informational and must not be added to normal print moves.
                 'gcode_x_offset': toolchanger.offset_x[self.index],
                 'gcode_y_offset': toolchanger.offset_y[self.index],
                 'gcode_z_offset': toolchanger.offset_z[self.index],
@@ -156,18 +157,15 @@ class _ToolTransform:
     That separation is the point. Klipper's homing_origin is ONE number per
     axis; folding the tool term into it meant carrying a shadow copy of
     which part was ours (_z_tool_term) so that a grab could subtract the old
-    and add the new, and it meant SET_GCODE_OFFSET Z=0 -- which the
-    end/cancel block issues, and which is the natural thing for anyone to
-    type -- wiped the tool's ~3.2 mm nozzle-to-station gap along with the
-    babystep. Below the offset, homing_origin is what its name and every UI
-    label already claim it is: the operator's own number, global to all
-    tools.
+    and add the new. Below the offset, homing_origin is what its name and
+    every UI label already claim it is: the operator's own number, global to
+    all tools.
 
     The tool INDEX is stored rather than the offsets, so refresh_offsets()
     reaches the live frame on its own -- which is what lets a per-tool Z
     tune apply mid-print without a config write.
 
-    Z also carries job_z, the print-scoped term of
+    Z carries only z_adjust plus job_z, the print-scoped term of
     TOOLCHANGE_SET_PRINT_OFFSET (thermal expansion, hot bed, first layer).
     It is global to all tools, but it is not the operator's number and must
     not share a slot with it: END_PRINT clearing the job term used to clear
@@ -283,8 +281,15 @@ class FFToolchange:
         self.slow_feed = config.getint('slow_feed', 5400, minval=1)
         self.release_slow_feed = config.getint('release_slow_feed', 5400,
                                                minval=1)
-        self.grab_retreat_feed = config.getint('grab_retreat_feed', 1500)
-        self.release_retreat_feed = config.getint('release_retreat_feed', 4800)
+        # Legacy name kept for existing printer.cfg overrides. The faster
+        # departure feed is only used after the grab sensor and dock sensor
+        # confirm the tool is latched and has left the dock.
+        self.grab_retreat_feed = config.getint('grab_retreat_feed', 1500,
+                                               minval=1)
+        self.grab_departure_feed = config.getint(
+            'grab_departure_feed', self.grab_retreat_feed, minval=1)
+        self.release_retreat_feed = config.getint('release_retreat_feed', 4800,
+                                                  minval=1)
         self.accel_move = config.getint('accel_move', 8000)
         # Post-sequence accel. The app hardcodes 20000; unset, we restore the
         # limit that was live when the sequence started (a user with a lower
@@ -340,6 +345,8 @@ class FFToolchange:
         self.runout_switch = []     # full object names, resolved at connect
         self.runout_motion = []
         self.armed_tool = -1
+        self.armed_switch = False
+        self.armed_motion = False
 
         self.gcode.register_command(
             'TOOLCHANGE', self.cmd_TOOLCHANGE, desc=self.cmd_TOOLCHANGE_help)
@@ -395,29 +402,26 @@ class FFToolchange:
 
             X = nozzle_x[tool] - nozzle_x[base]
             Y = nozzle_y[tool] - nozzle_y[base]
-            Z = z_adjust[tool] + (nozzle_z[tool] - station_z)
+            Z = z_adjust[tool]
 
         X/Y are DIFFERENCES against a base tool (T0 by default), as
-        CommMgr::setGrabGcodeOffsetMgr @0x77f1dc computes them. Z is
-        ABSOLUTE: nozzle_z - station_z is this tool's nozzle-to-eddy-trigger
-        gap (~3.2 mm), the raw-eddy-frame-to-bed-frame conversion the app
-        only applies at print start (setZOffsetWhenPrint). Applying it on
-        every grab instead means Z=0 is the bed plane whenever a tool is
-        mounted, so a manual move after T<n> cannot drive the nozzle into
-        the plate. The print-only terms (thermal, bed, thin layer) are
+        CommMgr::setGrabGcodeOffsetMgr @0x77f1dc computes them. Z is only
+        the per-tool user tune, z_adjust. The calibrated
+        nozzle_z - station_z gap is still required for plausibility checks and
+        reporting, but it is not a per-move frame offset on this Klipper port:
+        adding it here raised first-layer moves by almost 3 mm and caused
+        air-printing. The print-only terms (thermal, bed, thin layer) are
         added by TOOLCHANGE_SET_PRINT_OFFSET on top.
 
         nozzle_* are the station-bore centre measured with each tool's
         nozzle ([ff_tool n], written by TOOL_CALIBRATE_TOOL_OFFSET);
         z_adjust is the user's per-tool Z tune (the app's zoffset.json).
 
-        Without station_z (TOOL_LOCATE_SENSOR) Z falls back to the app's
-        relative form, nozzle_z[tool] - nozzle_z[base]. A tool without a
-        calibration contributes no MEASURED offset -- X and Y are zero, and Z
-        is that tool's z_adjust, which is not zero if one was ever set. Such
-        tools are listed by TOOLCHANGE_STATUS / warned about at ready. If the BASE tool is
-        uncalibrated X/Y are zero for every tool, since nothing can be
-        measured against it.
+        A tool without a calibration contributes no measured X/Y offset; Z is
+        still that tool's z_adjust, which is not zero if one was ever set.
+        Such tools are listed by TOOLCHANGE_STATUS / warned about at ready.
+        If the BASE tool is uncalibrated X/Y are zero for every tool, since
+        nothing can be measured against it.
         """
         tools = self.tools
         z_station = self._station_z()
@@ -432,12 +436,7 @@ class FFToolchange:
             else:
                 x_offsets.append(0.0)
                 y_offsets.append(0.0)
-            if tool.calibrated() and z_station is not None:
-                z_offsets.append(tool.z_adjust + (tool.nozzle[2] - z_station))
-            elif tool.calibrated() and base_ok:
-                z_offsets.append(tool.z_adjust + (tool.nozzle[2] - base_z))
-            else:
-                z_offsets.append(tool.z_adjust)
+            z_offsets.append(tool.z_adjust)
         return x_offsets, y_offsets, z_offsets
 
     def refresh_offsets(self, gcmd=None):
@@ -564,18 +563,17 @@ class FFToolchange:
         self._log_transform_chain()
         # The frame after a restart is whatever is on the carriage: klippy
         # restarts do not drop a tool, and leaving the frame at None would
-        # put Z=0 back at the eddy plane, ~3.2 mm into the plate.
+        # lose the mounted tool's X/Y and per-tool z_adjust.
         self.restore_tool_frame()
-        # Mirror the sensors to whatever is on the carriage after a
-        # restart (the app re-arms at print start only; arming outside a
-        # print is harmless -- _FF_RUNOUT ignores it unless printing).
+        # Mirror the hard runout switch to whatever is on the carriage after
+        # a restart, but do not arm the motion/clog sensor here. Motion
+        # sensors are deliberately print-scoped because manual load/purge
+        # moves can leave stale runout positions and fake clogs.
         tool, _reason = self._current_tool_or_none()
         if tool is None or tool < 0:
             self._disarm_runout()
         else:
-            # No RESET here: the motion sensors' own klippy:ready handler
-            # (which may run after ours) already starts them fresh.
-            self._arm_runout(tool, reset=False)
+            self._arm_runout(tool, reset=False, motion=False)
         missing = self.uncalibrated_tools()
         if missing:
             self.gcode.respond_info(
@@ -663,9 +661,13 @@ class FFToolchange:
             self._run('RESET_FILAMENT_SENSOR SENSOR=%s'
                       % objname.split(None, 1)[1])
 
-    def _arm_runout(self, tool, reset=True):
-        """setFilamentWheelManager(tool, true): every sensor off, then
-        only the mounted tool's on (motion sensor reset first)."""
+    def _arm_runout(self, tool, reset=True, switch=True, motion=False):
+        """Arm runout sensors for the mounted tool.
+
+        Switch sensors are hard filament-present gates and are safe to keep
+        enabled. Motion sensors are soft clog suspicion and must be explicitly
+        armed by print-start/toolchange policy after purge/loading moves.
+        """
         if tool < 0 or tool >= EXTRUDER_COUNT:
             self._disarm_runout()
             return
@@ -676,10 +678,29 @@ class FFToolchange:
         if self.runout_motion:
             if reset:
                 self._reset_motion_sensor(self.runout_motion[tool])
-            self._set_sensor_enabled(self.runout_motion[tool], True)
+            self._set_sensor_enabled(self.runout_motion[tool], bool(motion))
         if self.runout_switch:
-            self._set_sensor_enabled(self.runout_switch[tool], True)
+            self._set_sensor_enabled(self.runout_switch[tool], bool(switch))
+        self.armed_switch = bool(switch and self.runout_switch)
+        self.armed_motion = bool(motion and self.runout_motion)
+        if not self.armed_switch and not self.armed_motion:
+            self.armed_tool = -1
+            return
         self.armed_tool = tool
+
+    def _arm_switch_runout(self, tool, reset=True):
+        self._arm_runout(tool, reset=reset, switch=True, motion=False)
+
+    def _arm_print_runout(self, tool, reset=True):
+        self._arm_runout(tool, reset=reset, switch=True, motion=True)
+
+    def _disarm_motion_runout(self):
+        for name in self.runout_motion:
+            self._set_sensor_enabled(name, False)
+        self.armed_motion = False
+        if self.armed_tool >= 0 and self.armed_switch:
+            return
+        self.armed_tool = -1
 
     def _disarm_runout(self):
         """setFilamentWheelManager(_, false): everything off."""
@@ -687,12 +708,18 @@ class FFToolchange:
             for name in group:
                 self._set_sensor_enabled(name, False)
         self.armed_tool = -1
+        self.armed_switch = False
+        self.armed_motion = False
 
     def _armed_sensors(self):
         if self.armed_tool < 0:
             return []
-        return [g[self.armed_tool] for g in (self.runout_switch,
-                                             self.runout_motion) if g]
+        sensors = []
+        if self.armed_switch and self.runout_switch:
+            sensors.append(self.runout_switch[self.armed_tool])
+        if self.armed_motion and self.runout_motion:
+            sensors.append(self.runout_motion[self.armed_tool])
+        return sensors
 
     # ---------------- which tool is mounted ----------------
     #
@@ -794,9 +821,9 @@ class FFToolchange:
         target would drag the nozzle across the part.
 
         Restoring Z after a PARK is the one sharp edge. Parking zeroes the
-        tool offsets, so the same G-code Z is a different machine Z -- by
-        this tool's nozzle-to-eddy-trigger gap (~3.2 mm). Ask for Z on an
-        UNSELECT_TOOL only if you mean it; XY is the safe default.
+        tool offsets, so the same G-code Z may be a different machine Z if
+        the tool has a non-zero z_adjust or print-scoped job Z. Ask for Z on
+        an UNSELECT_TOOL only if you mean it; XY is the safe default.
         """
         if not axes:
             return
@@ -922,7 +949,22 @@ class FFToolchange:
                     "grab sensor never activated for T%d after %d attempts"
                     % (tool, GRAB_ATTEMPTS))
 
-            self._run('G1 X%.3f F%d' % (self.x_safe, self.grab_retreat_feed))
+            # Before leaving the dock area at the faster departure feed,
+            # prove the latch sequence actually picked the tool up. This
+            # mirrors the klipper-c5 split between slow/controlled latch
+            # motion and faster travel only after the sensors agree.
+            pre_departure_ok = self._poll_until(
+                lambda: (not self._in_location(tool)) and self._grab_sensor(),
+                VERIFY_TIMEOUT)
+            if not pre_departure_ok:
+                raise FFToolchangeError(
+                    "T%d pickup could not be verified before departure: "
+                    "in_dock=%s grab_sensor=%s (firmware error E%04d)"
+                    % (tool, self._in_location(tool), self._grab_sensor(),
+                       ERR_GRAB_VERIFY_BASE + tool))
+
+            self._run('G1 X%.3f F%d'
+                      % (self.x_safe, self.grab_departure_feed))
             self._wait_moves()
 
             # Verify: the tool must have LEFT its dock and the grab sensor
@@ -944,10 +986,10 @@ class FFToolchange:
             self._run('ACTIVATE_EXTRUDER EXTRUDER=%s'
                       % self._extruder_name(tool))
             self._set_tool_frame(tool)
-            # Tool is on the carriage and verified: its runout / clog
-            # sensors become the live ones (the app does this 3 s later
-            # from a thread; here the grab moves are already complete).
-            self._arm_runout(tool)
+            # Tool is on the carriage and verified: the hard filament-present
+            # switch becomes live. The motion/clog sensor is armed later by
+            # print policy, after purge/load moves and stale state resets.
+            self._arm_switch_runout(tool)
 
     # ---------------- release ----------------
 
@@ -1099,7 +1141,7 @@ class FFToolchange:
                 self._run('ACTIVATE_EXTRUDER EXTRUDER=%s'
                           % self._extruder_name(tool))
                 self._set_tool_frame(tool)
-                self._arm_runout(tool)
+                self._arm_switch_runout(tool)
             # No channel to announce. FlashForge's virtual_sdcard tracked one
             # so it could rewrite bare M104/M109 and SET_PRESSURE_ADVANCE per
             # channel. Upstream needs none: both apply to the ACTIVE extruder,
@@ -1153,26 +1195,22 @@ class FFToolchange:
         carriage at a dock.
 
         offset_x/offset_y are tool-to-tool DIFFERENCES against the base
-        tool; offset_z is this tool's ABSOLUTE gap to the bed plane
-        (~+3.2 mm, see _derive_offsets). Applying the gap on every grab --
-        rather than once per print, as the app's setZOffsetWhenPrint does --
-        is what makes Z=0 the bed plane whenever a tool is mounted, so a
-        manual move after T<n> cannot drive the nozzle into the plate.
+        tool; offset_z is only this tool's z_adjust. The measured
+        nozzle-to-station gap is deliberately not applied here because this
+        Klipper frame already prints at the expected bed plane without it.
 
         reset_last_position() is not optional: gcode_move caches
         last_position from position_with_transform(), and that cache is
         stale the instant the frame changes."""
         self.gcode_transform.tool = tool
         self._reset_gcode_position()
-        # An uncalibrated tool contributes no measured Z, so its frame is only
-        # z_adjust and Z=0 stays at the station plane -- ~3.2 mm below the bed,
-        # in the crash direction. Prints are gated on this; a hand-typed G1 Z0
-        # is not, so say so as the frame goes on.
+        # An uncalibrated tool contributes no measured X/Y, so prints are
+        # gated on calibration. Z remains z_adjust-only either way.
         if tool is not None and not self.tools[tool].calibrated():
             self.gcode.respond_info(
                 "ff_toolchange: WARNING: T%d has no nozzle calibration --"
-                " Z=0 is the station plane, ~3.2 mm BELOW the bed. Do not"
-                " move Z down by hand; run CALIBRATE_TOOL_OFFSETS." % tool)
+                " X/Y offsets are unknown. Run CALIBRATE_TOOL_OFFSETS."
+                % tool)
 
     def suspend_tool_frame(self):
         """Drop to raw machine coordinates -- the offset calibration probes
@@ -1219,11 +1257,11 @@ class FFToolchange:
         t*_offset_z / z_station_pos = nozzle-touch vs eddy-touch calibration
         against the fixed under-bed sensor. Derivation: docs/notes/40-offsets.md.
 
-        Only the JOB terms are set here. The first line of the app's sum,
-        the gap (nozzle_z - station_z + z_adjust), is the per-tool frame --
-        already applied by every T<n> and carried by the transform, so
-        adding it again would double it. What is left is global to the job
-        rather than to a tool, which is exactly the layer homing_origin is:
+        Only the JOB terms are set here. The calibrated
+        nozzle_z - station_z gap is reported below for audit, but is not
+        applied to the transform: on this Klipper port it caused first-layer
+        moves to run almost 3 mm above the bed. What is left is global to the
+        job rather than to a tool, which is exactly the layer homing_origin is:
 
             SET_GCODE_OFFSET Z = temp + bed + layer   (+ the babystep,
                                                        which stays put)
@@ -1274,7 +1312,8 @@ class FFToolchange:
             z += -0.06
         gcmd.respond_info(
             "print Z offset for T%d: %.3f (temp %+.3f, bed %+.2f,"
-            " layer %+.2f); T%d frame carries gap %+.3f, z_adjust %+.3f"
+            " layer %+.2f); T%d calibrated gap %+.3f not applied,"
+            " z_adjust %+.3f"
             % (tool, z, (nozzle - 120.0) * temp_coeff,
                0.08 if bed >= 100.0 else 0.0,
                -0.06 if 0 < int_layer <= 10 else 0.0,
@@ -1375,10 +1414,10 @@ class FFToolchange:
         """Re-derive the state, and re-apply the frame that goes with it.
 
         Upstream's re-applies too, and here it is the only way back: an
-        aborted toolchange leaves the frame off with a tool still on the
-        carriage, and a bare G1 Z0 then aims ~3.2 mm into the plate.
-        Nothing moves and no dock is touched, so it is safe to type when
-        the machine is in an unknown state -- which is when it is typed."""
+        aborted toolchange can leave the frame off with a tool still on the
+        carriage. Nothing moves and no dock is touched, so it is safe to type
+        when the machine is in an unknown state -- which is when it is
+        typed."""
         self._wait_moves()
         mounted, reason = self._current_tool_or_none()
         if mounted is None:
@@ -1460,8 +1499,8 @@ class FFToolchange:
         stopping the script that called this."""
         raise gcmd.error(gcmd.get('MESSAGE', 'tool change failed'))
 
-    cmd_FF_RUNOUT_ARM_help = ("Enable the mounted tool's runout/clog sensors"
-                              " (and disable the others); TOOL= overrides")
+    cmd_FF_RUNOUT_ARM_help = ("Enable mounted tool runout sensors; TOOL="
+                              " overrides, SWITCH=1, MOTION=0 by default")
 
     def cmd_FF_RUNOUT_ARM(self, gcmd):
         tool = gcmd.get_int('TOOL', -1)
@@ -1476,15 +1515,25 @@ class FFToolchange:
         if not (self.runout_switch or self.runout_motion):
             gcmd.respond_info("FF_RUNOUT_ARM: no runout sensors configured")
             return
-        self._arm_runout(tool)
-        gcmd.respond_info("runout sensors armed for T%d: %s"
-                          % (tool, ", ".join(self._armed_sensors())))
+        switch = bool(gcmd.get_int('SWITCH', 1, minval=0, maxval=1))
+        motion = bool(gcmd.get_int('MOTION', 0, minval=0, maxval=1))
+        self._arm_runout(tool, switch=switch, motion=motion)
+        gcmd.respond_info("runout sensors armed for T%d"
+                          " (switch=%d motion=%d): %s"
+                          % (tool, 1 if self.armed_switch else 0,
+                             1 if self.armed_motion else 0,
+                             ", ".join(self._armed_sensors()) or "none"))
 
     cmd_FF_RUNOUT_DISARM_help = "Disable every runout/clog sensor"
 
     def cmd_FF_RUNOUT_DISARM(self, gcmd):
-        self._disarm_runout()
-        gcmd.respond_info("runout sensors disarmed")
+        motion_only = bool(gcmd.get_int('MOTION_ONLY', 0, minval=0, maxval=1))
+        if motion_only:
+            self._disarm_motion_runout()
+            gcmd.respond_info("motion/clog sensors disarmed")
+        else:
+            self._disarm_runout()
+            gcmd.respond_info("runout sensors disarmed")
 
     cmd_TOOLCHANGE_STATUS_help = "Report toolchanger sensor state"
 
@@ -1499,8 +1548,7 @@ class FFToolchange:
         applied = self.gcode_transform.tool
         if applied is None:
             lines.append("  frame applied: NONE -- raw machine coordinates."
-                         " Z=0 is the station plane, ~3.2 mm BELOW the bed;"
-                         " run T%s to re-apply%s"
+                         " run T%s to re-apply X/Y and z_adjust%s"
                          % ("<n>" if tool is None or tool < 0 else "%d" % tool,
                             "" if tool is None or tool < 0
                             else " (INITIALIZE_TOOLCHANGER does it without"
@@ -1514,6 +1562,9 @@ class FFToolchange:
         if self.runout_switch or self.runout_motion:
             lines.append("  runout sensors armed: %s"
                          % (", ".join(self._armed_sensors()) or "none"))
+            lines.append("  runout policy: switch=%d motion=%d"
+                         % (1 if self.armed_switch else 0,
+                            1 if self.armed_motion else 0))
         for i, sensor in enumerate(self.dock_sensors):
             try:
                 lines.append("  T%d in dock (%s): %s"
@@ -1568,6 +1619,7 @@ class FFToolchange:
         lines.append("  fast_feed     %d" % self.fast_feed)
         lines.append("  slow_feed     %d" % self.slow_feed)
         lines.append("  release_slow_feed %d" % self.release_slow_feed)
+        lines.append("  grab_departure_feed %d" % self.grab_departure_feed)
         lines.append("  temp_offset   %.6f" % self.temp_offset)
         gcmd.respond_info("\n".join(lines))
 
@@ -1584,13 +1636,28 @@ class FFToolchange:
         if current < 0:
             gcmd.respond_info("no tool mounted (%s)" % reason)
             return
+        was_changing = self.changing
+        self.changing = True
         try:
             self._ensure_homed('xy')
+            bed_mesh = self.printer.lookup_object('bed_mesh', None)
+            if (bed_mesh is not None and bed_mesh.get_mesh() is not None
+                    and 'z' not in self.printer.lookup_object(
+                        'toolhead').get_status(
+                            self.reactor.monotonic())['homed_axes']):
+                # Mesh compensation turns dock XY travel into Z motion, which
+                # is forbidden before Z homing. Leave it clear even if parking
+                # fails; restoring it would make the next attempt unsafe.
+                self._run('BED_MESH_CLEAR')
+                gcmd.respond_info("TOOLCHANGE_PARK: cleared active bed mesh"
+                                  " because Z is unhomed")
             self._release(current)
             if resume is not None:
                 self._restore_position(restore_axis, resume)
         except FFToolchangeError as err:
             raise gcmd.error(str(err))
+        finally:
+            self.changing = was_changing
 
     def print_offset_ready(self, tool=None):
         """Can TOOLCHANGE_SET_PRINT_OFFSET succeed? Needs station_z and
@@ -1621,6 +1688,8 @@ class FFToolchange:
                 # Tool whose runout/clog sensors are enabled (-1 = none)
                 # and those sensors' object names.
                 'runout_armed': self.armed_tool,
+                'runout_switch_armed': self.armed_switch,
+                'runout_motion_armed': self.armed_motion,
                 'runout_sensors': self._armed_sensors()}
 
 

@@ -15,13 +15,15 @@ START_PRINT BED=60 TOOL=2 NOZZLE=240 LAYER=0.2 LEVEL=0 TOOLS=0:220,2:240 [CLEAN=
 1. `_FF_PREFLIGHT` — both gates in one pass, before any heating or motion:
    every tool in TOOLS (plus TOOL) calibrated and the station known, and every one of
    them docked or mounted (`docked_tools` / `current_tool`). App: E0165.
-3. `G90 M82 BED_MESH_CLEAR G28`, offset zero (`MOVE=1 MOVE_SPEED=600`), idle timeout
+3. `G90 M82 G28`, offset zero (`MOVE=1 MOVE_SPEED=600`), idle timeout
    864000. No `M400`; the app's 1800000 timeout is not reproduced.
 4. `M140 S<bed>` (non-blocking, as the app's heatManager).
 5. `_FF_NOZZLE_CLEAN TOOLS=.. TEMPS=.. TEMP=<NOZZLE>` then `M106 P1 S0` — the clean runs
    while the bed heats, exactly where the app runs it.
-6. `M190`, optional `G4` soak, `G28 Z`, mesh, `M104 S<NOZZLE> T<TOOL>`, `T<TOOL>`,
-   `TOOLCHANGE_SET_PRINT_OFFSET` — as before, plus the app's heat-before-grab of the first tool.
+6. `M190`, optional `G4` soak, `G28 Z`, mesh only when `LEVEL=1` or
+   `MESH=<profile>` is explicit, `M104 S<NOZZLE> T<TOOL>`, `T<TOOL>`,
+   `TOOLCHANGE_SET_PRINT_OFFSET`, then `REFORGE_ARM_MOTION_SENSOR` for the
+   mounted tool.
 
 `TOOLS` is the paired form `<tool>:<temp>`; a bare `0,2` is accepted and falls back to
 `NOZZLE`. `TEMPS=` is the older positional override, still honoured. TOOLS defaults to

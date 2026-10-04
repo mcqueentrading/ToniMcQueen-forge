@@ -4,14 +4,14 @@ Everything below lives in the APP, not in Klipper: the fork ships only bare
 `[pause_resume]` and `[virtual_sdcard]`. `pkgs/klipper-config/payload/config/ff-print-macros.cfg` reproduces the
 sequences for Mainsail-started prints.
 
-**How they are entered now.** `START_PRINT` is no longer something the slicer has to
-call. `[ff_print]` (`pkgs/klipper/payload/klipper/klippy/extras/ff_print.py`) wraps `SDCARD_PRINT_FILE` and
-`M23`, reads the slicer metadata out of the file itself, and calls
-`FF_BEFORE_PRINT_START` (which runs `START_PRINT` when its `prepare` variable is 1, the
-shipped default) and `FF_AFTER_PRINT_END`. `CANCEL_PRINT` is overridden too. So the
-Orca profile stays stock and a print started from Mainsail gets the whole sequence
-without any per-print arguments — set `prepare: 0` only if your own profile already
-calls `START_PRINT`. See `ff-print-macros.cfg`'s tail.
+**How they are entered now.** `[ff_print]`
+(`pkgs/klipper/payload/klipper/klippy/extras/ff_print.py`) still wraps
+`SDCARD_PRINT_FILE` and `M23`, but this local full-colour branch ships
+`FF_BEFORE_PRINT_START.prepare=0`. That means the slicer profile or operator
+must call `START_PRINT` explicitly. The wrapper still runs `_FF_PREFLIGHT` as a
+zero-motion safety gate and `FF_AFTER_PRINT_END` for cleanup. `CANCEL_PRINT` is
+overridden too, but now respects `_FF_JOB.ended` so cleanup is not repeated
+after a slicer footer already called `END_PRINT`.
 
 ## Flow map (touchscreen print)
 
@@ -25,7 +25,7 @@ CommMgr::serialPrint @0x79c8e0         -> the 37 KB engine thread
 
 ## Preparation (prepareForEddy) — reproduced by START_PRINT
 
-1. `G90`, `M82`, `BED_MESH_CLEAR`, `M400`
+1. `G90`, `M82`
 2. `G28` (full home); abort on failure
 3. `SET_GCODE_OFFSET X=0 Y=0 MOVE=1 MOVE_SPEED=600`
 4. two probe touch checks (app-internal `checkProbeZValue`)
@@ -36,9 +36,9 @@ CommMgr::serialPrint @0x79c8e0         -> the 37 KB engine thread
    ported as `_FF_NOZZLE_CLEAN`, see [`50a`](50a-nozzle-clean-recovered.md) /
    [`50b`](50b-nozzle-clean-port.md)
 7. bed+chamber soak wait (keepBedTempPrint = 5 min), then **`G28 Z` re-home**
-8. per-print leveling toggle: ON → `BED_MESH_CALIBRATE` at ACCEL=2000 then
-   `BED_MESH_PROFILE LOAD=default`; OFF → `BED_MESH_PROFILE LOAD=MESH_DATA`
-   (a mesh is ALWAYS active for a print)
+8. mesh policy in this fork: `LEVEL=1` → `BED_MESH_CALIBRATE` at ACCEL=2000
+   then `BED_MESH_PROFILE LOAD=default`; explicit `MESH=<profile>` loads that
+   profile; otherwise `START_PRINT` leaves the currently active mesh alone
 9. heat + grab the first tool; `G1 Z10 F1200` clearance
 
 ## serialPrint preamble (fresh print)
@@ -82,6 +82,6 @@ bed presentation drop `G1 Z150/200/256.8 F1800` by current-Z thresholds 100/150;
 - pause park: +10 mm clamped to 256 (app's exact formula unrecovered)
 - tool gate covers all of TOOLS, not just the first tool; nozzle clean uses slicer
   temperatures (TEMPS=) and the fixed purge_z instead of a fresh eddy probe
-- CANCEL_PRINT override runs our cleanup for every cancel. The job-origin flag it
-  used to check existed for the touchscreen's own cancel, which did its own motion
-  cleanup; that UI is not one this mod ships.
+- `CANCEL_PRINT` runs the base cancel, then runs our cleanup only if
+  `_FF_JOB.ended` is still false. That keeps cancel/error paths from repeating
+  `END_PRINT` after a slicer footer already completed cleanup.
