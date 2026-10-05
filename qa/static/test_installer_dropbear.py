@@ -2,6 +2,7 @@ from lib.paths import ROOT
 
 
 INSTALLER = ROOT / "installer" / "runFirmwareExe.sh"
+LINK_PROG = ROOT / "pkgs" / "anvil-core" / "payload" / "bin" / "anvil-link-prog.sh"
 
 
 def test_dropbear_host_key_patch_is_idempotent_and_conditional():
@@ -19,9 +20,12 @@ def test_dropbear_host_key_patch_is_idempotent_and_conditional():
 
 
 def test_toniforge_helpers_are_exposed_on_ssh_path():
-    text = INSTALLER.read_text()
+    installer = INSTALLER.read_text()
+    link_prog = LINK_PROG.read_text()
 
-    assert "PATH=/usr/data/anvil/bin:/usr/prog/bin:\\$PATH" in text
-    assert "export PATH" in text
-    assert "for _helper in toniforge-tailscale toniforge-tailscale-enable toniforge-tailscale-disable" in text
-    assert 'ln -sf "$MODDIR/bin/$_helper" "/usr/prog/bin/$_helper"' in text
+    assert "PATH=/usr/data/anvil/bin:/usr/prog/bin:\\$PATH" in installer
+    assert "export PATH" in installer
+    assert 'dst="/usr/prog/bin/$name"' in link_prog
+    assert "link_helper toniforge-tailscale" in link_prog
+    assert "link_helper toniforge-tailscale-enable" in link_prog
+    assert "link_helper toniforge-tailscale-disable" in link_prog

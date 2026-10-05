@@ -376,15 +376,6 @@ if [ -n "$MODTAR" ]; then
             rm -rf $HELIX_KEEP
         fi
         chmod a+x $MODDIR/bin/* 2>/dev/null
-        # SSH login shells on this firmware reset PATH to the stock directories,
-        # so expose owner-facing helpers through /usr/prog/bin as stable shims.
-        mkdir -p /usr/prog/bin
-        for _helper in toniforge-tailscale toniforge-tailscale-enable toniforge-tailscale-disable; do
-            if [ -x "$MODDIR/bin/$_helper" ]; then
-                ln -sf "$MODDIR/bin/$_helper" "/usr/prog/bin/$_helper"
-            fi
-        done
-        unset _helper
         # The s6 scandir needs no sweep. MEASURED: s6-rc-init creates one
         # symlink per service in it and fails outright -- "unable to supervise
         # service directories ...: File exists" -- if a name is taken, and

@@ -97,6 +97,31 @@ link_one() {
 link_one prog/firmwareExe   /usr/prog/PROGRAM/software/firmwareExe
 link_one prog/start.sh      /usr/prog/klipper/start.sh
 
+# SSH login shells on this firmware reset PATH to the stock directories. These
+# owner-facing helpers live in $MODDIR/bin, so expose stable shims through
+# /usr/prog/bin, which is already on the stock SSH PATH.
+link_helper() {
+    name="$1"
+    src="$MODDIR/bin/$name"
+    dst="/usr/prog/bin/$name"
+
+    [ -x "$src" ] || { echo "link-prog: no $src -- leaving $dst alone"; return 0; }
+
+    if [ -L "$dst" ] && [ "$(readlink "$dst")" = "$src" ]; then
+        return 0
+    fi
+
+    mkdir -p /usr/prog/bin
+    rm -f "$dst.anvil-new"
+    ln -s "$src" "$dst.anvil-new"
+    mv -f "$dst.anvil-new" "$dst"
+    echo "link-prog: $dst -> $src"
+}
+
+link_helper toniforge-tailscale
+link_helper toniforge-tailscale-enable
+link_helper toniforge-tailscale-disable
+
 # KLIPPERDAEMON IS FLASHFORGE'S, AND IS PUT BACK WHEN IT IS NOT THERE.
 #
 # Their package restores the two paths above -- run.sh copies its own
