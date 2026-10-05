@@ -533,10 +533,13 @@ if [ -s "$DROPBEAR_KEY_DIR/dropbear_rsa_host_key" ] || [ -s "$DROPBEAR_KEY_DIR/d
         /usr/prog/etc/init.d/S50dropbear.anvil-new \
         /etc/init.d/S51dropbear-reforge-once \
         /usr/prog/etc/init.d/S51dropbear-reforge-once \
+        /etc/init.d/S98zmod-dropbear-clean-once \
+        /usr/prog/etc/init.d/S98zmod-dropbear-clean-once \
         /etc/init.d/S99dropbear-reforge-once \
         /usr/prog/etc/init.d/S99dropbear-reforge-once \
         /etc/default/dropbear \
-        /usr/prog/etc/default/dropbear
+        /usr/prog/etc/default/dropbear \
+        /usr/data/zmod/zmod/.shell/eabi/dropbear
     do
         rm -f "$_dropbear_old" 2>/dev/null || true
     done
@@ -618,6 +621,28 @@ INITEOF
     chmod +x /usr/prog/etc/init.d/S50dropbear 2>/dev/null || true
     cp -f /usr/prog/etc/init.d/S50dropbear /etc/init.d/S50dropbear 2>/dev/null || true
     chmod +x /etc/init.d/S50dropbear 2>/dev/null || true
+    cat > /usr/prog/etc/init.d/S98zmod-dropbear-clean-once << 'ZMODEOF'
+#!/bin/sh
+# Reforge local: zmod itself can stay, but its SSH override conflicts with
+# persistent Dropbear host keys. Remove only zmod's Dropbear starter/binary,
+# then remove this one-shot cleanup script.
+
+LOG=/tmp/zmod-dropbear-clean-once.log
+echo "zmod dropbear cleanup start $(date)" > "$LOG"
+if [ -d /usr/data/zmod/zmod/.shell ]; then
+    rm -f /usr/data/zmod/zmod/.shell/S60dropbear /usr/data/zmod/zmod/.shell/eabi/dropbear 2>/dev/null || true
+    echo "removed zmod dropbear starter/binary if present" >> "$LOG"
+else
+    echo "zmod shell directory absent; nothing to clean" >> "$LOG"
+fi
+rm -f /etc/init.d/S98zmod-dropbear-clean-once /usr/prog/etc/init.d/S98zmod-dropbear-clean-once
+
+exit 0
+ZMODEOF
+    chmod +x /usr/prog/etc/init.d/S98zmod-dropbear-clean-once 2>/dev/null || true
+    cp -f /usr/prog/etc/init.d/S98zmod-dropbear-clean-once /etc/init.d/S98zmod-dropbear-clean-once 2>/dev/null || true
+    chmod +x /etc/init.d/S98zmod-dropbear-clean-once 2>/dev/null || true
+    /etc/init.d/S98zmod-dropbear-clean-once >/tmp/zmod-dropbear-clean-once-launch.log 2>&1 || true
     cat > /usr/prog/etc/init.d/S99dropbear-reforge-once << 'ONCEEOF'
 #!/bin/sh
 # Reforge local: one-shot late restart so the clean S50dropbear replaces any

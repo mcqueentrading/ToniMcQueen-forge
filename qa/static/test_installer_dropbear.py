@@ -17,6 +17,11 @@ def test_dropbear_host_key_patch_is_idempotent_and_conditional():
     assert "rm -f \"$_dropbear_old\"" in text
     assert "cat > /usr/prog/etc/init.d/S50dropbear << INITEOF" in text
     assert "cp -f /usr/prog/etc/init.d/S50dropbear /etc/init.d/S50dropbear" in text
+    assert "/usr/data/zmod/zmod/.shell/eabi/dropbear" in text
+    assert "cat > /usr/prog/etc/init.d/S98zmod-dropbear-clean-once << 'ZMODEOF'" in text
+    assert "rm -f /usr/data/zmod/zmod/.shell/S60dropbear /usr/data/zmod/zmod/.shell/eabi/dropbear" in text
+    assert "rm -f /etc/init.d/S98zmod-dropbear-clean-once /usr/prog/etc/init.d/S98zmod-dropbear-clean-once" in text
+    assert "/etc/init.d/S98zmod-dropbear-clean-once >/tmp/zmod-dropbear-clean-once-launch.log 2>&1" in text
     assert "cat > /usr/prog/etc/init.d/S99dropbear-reforge-once << 'ONCEEOF'" in text
     assert "sleep 20" in text
     assert "for attempt in 1 2 3 4 5 6" in text
