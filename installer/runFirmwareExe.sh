@@ -533,6 +533,8 @@ if [ -s "$DROPBEAR_KEY_DIR/dropbear_rsa_host_key" ] || [ -s "$DROPBEAR_KEY_DIR/d
         /usr/prog/etc/init.d/S50dropbear.anvil-new \
         /etc/init.d/S51dropbear-reforge-once \
         /usr/prog/etc/init.d/S51dropbear-reforge-once \
+        /etc/init.d/S99dropbear-reforge-once \
+        /usr/prog/etc/init.d/S99dropbear-reforge-once \
         /etc/default/dropbear \
         /usr/prog/etc/default/dropbear
     do
@@ -616,23 +618,36 @@ INITEOF
     chmod +x /usr/prog/etc/init.d/S50dropbear 2>/dev/null || true
     cp -f /usr/prog/etc/init.d/S50dropbear /etc/init.d/S50dropbear 2>/dev/null || true
     chmod +x /etc/init.d/S50dropbear 2>/dev/null || true
-    cat > /usr/prog/etc/init.d/S51dropbear-reforge-once << 'ONCEEOF'
+    cat > /usr/prog/etc/init.d/S99dropbear-reforge-once << 'ONCEEOF'
 #!/bin/sh
-# Reforge local: one-shot restart so the clean S50dropbear replaces any stock
-# dropbear -R daemon that was already started earlier in this boot.
+# Reforge local: one-shot late restart so the clean S50dropbear replaces any
+# stock dropbear -R daemon that was already started earlier in this boot.
 
 (
+    LOG=/tmp/dropbear-reforge-once.log
     sleep 20
-    /etc/init.d/S50dropbear restart >/tmp/dropbear-reforge-once.log 2>&1 || true
-    rm -f /etc/init.d/S51dropbear-reforge-once /usr/prog/etc/init.d/S51dropbear-reforge-once
+    echo "dropbear one-shot start $(date)" > "$LOG"
+    for attempt in 1 2 3 4 5 6; do
+        echo "attempt $attempt: restarting clean dropbear" >> "$LOG"
+        /etc/init.d/S50dropbear restart >> "$LOG" 2>&1 || true
+        sleep 5
+        if ps w | grep '[d]ropbear' | grep -q -- ' -R'; then
+            echo "attempt $attempt: still saw dropbear -R" >> "$LOG"
+        else
+            echo "attempt $attempt: success, no dropbear -R remains" >> "$LOG"
+            rm -f /etc/init.d/S99dropbear-reforge-once /usr/prog/etc/init.d/S99dropbear-reforge-once
+            exit 0
+        fi
+    done
+    echo "failed: leaving one-shot installed for next boot" >> "$LOG"
 ) &
 
 exit 0
 ONCEEOF
-    chmod +x /usr/prog/etc/init.d/S51dropbear-reforge-once 2>/dev/null || true
-    cp -f /usr/prog/etc/init.d/S51dropbear-reforge-once /etc/init.d/S51dropbear-reforge-once 2>/dev/null || true
-    chmod +x /etc/init.d/S51dropbear-reforge-once 2>/dev/null || true
-    /etc/init.d/S51dropbear-reforge-once >/tmp/dropbear-reforge-once-launch.log 2>&1 || true
+    chmod +x /usr/prog/etc/init.d/S99dropbear-reforge-once 2>/dev/null || true
+    cp -f /usr/prog/etc/init.d/S99dropbear-reforge-once /etc/init.d/S99dropbear-reforge-once 2>/dev/null || true
+    chmod +x /etc/init.d/S99dropbear-reforge-once 2>/dev/null || true
+    /etc/init.d/S99dropbear-reforge-once >/tmp/dropbear-reforge-once-launch.log 2>&1 || true
     echo "ssh host keys and clean dropbear init configured under $DROPBEAR_KEY_DIR"
     unset DROPBEAR_KEY_ARGS
 else
