@@ -13,8 +13,11 @@ It is built for our workshop workflow: full-colour ImageMap printing, safer
 toolchange behavior, snapshot timelapse evidence, Orca profile control, and
 repeatable calibration.
 
-This is not upstream Reforge. It is our fork, for our machine, with Reforge
-credited as the base firmware project.
+This is not upstream Reforge. It is our fork, for our machine. It exists
+because the Reforge/Klipper4FlashForge developers did the hard base-port work:
+FlashForge update packaging, Klipper/Moonraker/Mainsail/HelixScreen integration,
+toolchanger support, installer safety, and the Creator 5 documentation base.
+Thank you to the Reforge developers and the Creator 5 modding community.
 
 ```text
 [ operator ] ToniMcQueen
@@ -27,13 +30,41 @@ credited as the base firmware project.
 ## What This Fork Adds
 
 - Local Creator 5 Pro macros for print lifecycle, preflight, purge, resume, and cancel behavior.
-- Toolchange hardening around dock/grab/runout sensor windows.
+- A standalone `REFORGE_PREFLIGHT` macro for purge/check workflows without silently starting a print.
+- Safer `START_PRINT` mesh handling: it does not blindly clear/load meshes unless requested.
+- Full-colour purge/preflight profile work for debugging CMYW tool reliability.
+- Toolchange hardening around dock, grab, release, load, purge, and runout sensor windows.
+- Runout and motion/clog sensor policy so sensors are disarmed only during risky tool handling paths.
 - Snapshot timelapse plumbing for per-print photo evidence and later AI review.
-- Dual-camera support kept in the fork.
-- Chamber and aux-fan policy notes for PLA versus ABS/ASA/nylon behavior.
-- Boot-screen branding support for the modded firmware.
+- Timelapse package patching so raw frames can be zipped and cleaned instead of rendering costly video.
+- Dual-camera support kept in the fork instead of dropping the second feed.
+- Moonraker/camera/API hardening notes and config work for weaker printer-board resources.
+- Chamber heater, chamber fan, aux cooling, and outside-air intake policy for PLA versus ABS/ASA/nylon.
+- Fan-control planning for the Creator 5 Pro airflow problem where chamber heat and aux cooling fight each other.
+- Dropbear/SSH installer handling so SSH access survives cleanly instead of losing host keys or breaking login paths.
+- Boot-screen branding support for `ToniMcQueen's Forge`.
 - Orca/ImageMap printer, process, and CMYW filament profiles.
+- G-code arc fitting test plan for future slicer work.
 - Static tests for the behavior we care about keeping fixed.
+
+## Changed Areas
+
+```text
+[ macros       ] START_PRINT, CANCEL_PRINT, RESUME, REFORGE_PREFLIGHT
+[ toolchange   ] dock/release/grab paths, fast departure, parked tool state
+[ sensors      ] filament switch + motion/clog sensor arming policy
+[ timelapse    ] snapshot trigger, frame archive cleanup, no printer-side video render
+[ cameras      ] preserve two camera feeds in the fork
+[ airflow      ] chamber heater, recirculation, aux fan, outside-air cooling policy
+[ ssh/dropbear ] installer-side SSH persistence and safer update handling
+[ boot         ] ToniMcQueen's Forge boot-screen branding
+[ slicer       ] local Orca/ImageMap profiles, CMYW filament profiles, snapshot profiles
+[ qa           ] static tests for lifecycle, timelapse, toolchange, webcam/fan, arcs, installer
+```
+
+This is a practical fork, not a clean-room rewrite. The point is to capture
+the things we changed while tuning a real Creator 5 Pro, then make those
+changes reproducible instead of leaving them as one-off live-printer edits.
 
 ## Matrix Map
 
@@ -130,6 +161,12 @@ This fork is based on the Reforge/Klipper4FlashForge Creator 5 firmware work:
 https://github.com/Klipper4FlashForge/firmware
 ```
 
-Reforge, Klipper, Moonraker, Mainsail, HelixScreen, and the Creator 5 modding
-community provide the base this local fork builds on. ToniMcQueen-forge is our
-workshop branch and not an upstream support channel.
+Special thanks to the Reforge developers for making the Creator 5/Creator 5 Pro
+Klipper firmware path possible in the first place. This fork would not exist
+without their installer, packaging, recovery, Klipper, Moonraker, Mainsail,
+HelixScreen, toolchanger, and documentation work.
+
+Thanks also to Klipper, Moonraker, Mainsail, HelixScreen, OpenCreator, and the
+Creator 5 modding community for the ecosystem this local workshop branch builds
+on. ToniMcQueen-forge is our experimental local branch and not an upstream
+support channel.
