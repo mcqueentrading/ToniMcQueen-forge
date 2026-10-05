@@ -541,17 +541,60 @@ if [ -s "$DROPBEAR_KEY_DIR/dropbear_rsa_host_key" ] || [ -s "$DROPBEAR_KEY_DIR/d
     echo "ssh host keys configured under $DROPBEAR_KEY_DIR"
 
     # FlashForge's stock init can pass -R to dropbear, which tells it to
-    # auto-generate host keys. Strip that flag and append our persistent key
-    # arguments if the init script does not read /etc/default/dropbear.
+    # auto-generate host keys. Replace that fragile script with a small
+    # idempotent init script that reads /etc/default/dropbear and never uses
+    # -R. Avoid sed-rewriting the stock shell: comments and tests mention
+    # dropbear too, and broad substitutions can corrupt the script.
     for _dropbear_init in /etc/init.d/S50dropbear /usr/prog/etc/init.d/S50dropbear; do
         [ -f "$_dropbear_init" ] || continue
         cp "$_dropbear_init" "$_dropbear_init.anvil-before-persistent-hostkeys" 2>/dev/null || true
-        sed \
-            -e 's/[[:space:]]-R\([[:space:]]\|$\)/\1/g' \
-            -e "s#[[:space:]]-r[[:space:]]$DROPBEAR_KEY_DIR/dropbear_rsa_host_key##g" \
-            -e "s#[[:space:]]-r[[:space:]]$DROPBEAR_KEY_DIR/dropbear_ecdsa_host_key##g" \
-            -e "s#dropbear \([^\"']*\)#dropbear \1 $DROPBEAR_KEY_ARGS#" \
-            "$_dropbear_init" > "$_dropbear_init.anvil-new" 2>/dev/null &&
+        cat > "$_dropbear_init.anvil-new" << INITEOF
+#!/bin/sh
+# Reforge local: persistent Dropbear host keys, no -R auto-generation.
+
+test -r /etc/default/dropbear && . /etc/default/dropbear
+PIDFILE=/var/run/dropbear.pid
+: \${DROPBEAR_ARGS:="$DROPBEAR_KEY_ARGS"}
+
+start() {
+    mkdir -p /etc/dropbear /var/run
+    printf "Starting dropbear sshd: "
+    umask 077
+    start-stop-daemon -S -q -p "\$PIDFILE" \\
+        --exec /usr/sbin/dropbear -- \$DROPBEAR_ARGS
+    [ \$? = 0 ] && echo "OK" || echo "FAIL"
+}
+
+stop() {
+    printf "Stopping dropbear sshd: "
+    start-stop-daemon -K -q -p "\$PIDFILE"
+    [ \$? = 0 ] && echo "OK" || echo "FAIL"
+}
+
+restart() {
+    stop
+    start
+}
+
+case "\$1" in
+  start)
+    start
+    ;;
+  stop)
+    stop
+    ;;
+  restart|reload)
+    restart
+    ;;
+  *)
+    echo "Usage: \$0 {start|stop|restart}"
+    exit 1
+    ;;
+esac
+
+exit 0
+INITEOF
+        [ -s "$_dropbear_init.anvil-new" ] &&
             mv "$_dropbear_init.anvil-new" "$_dropbear_init" 2>/dev/null &&
             chmod +x "$_dropbear_init" 2>/dev/null || true
     done

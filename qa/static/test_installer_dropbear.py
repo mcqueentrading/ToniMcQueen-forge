@@ -11,5 +11,8 @@ def test_dropbear_host_key_patch_is_idempotent_and_conditional():
     assert "dropbear_rsa_host_key" in text
     assert "dropbear_ecdsa_host_key" in text
     assert "printf 'DROPBEAR_ARGS=\"%s\"\\n' \"$DROPBEAR_KEY_ARGS\"" in text
-    assert "-e \"s#[[:space:]]-r[[:space:]]$DROPBEAR_KEY_DIR/dropbear_rsa_host_key##g\"" in text
-    assert "-e \"s#[[:space:]]-r[[:space:]]$DROPBEAR_KEY_DIR/dropbear_ecdsa_host_key##g\"" in text
+    assert "cat > \"$_dropbear_init.anvil-new\" << INITEOF" in text
+    assert "test -r /etc/default/dropbear && . /etc/default/dropbear" in text
+    assert ": \\${DROPBEAR_ARGS:=\"$DROPBEAR_KEY_ARGS\"}" in text
+    assert "--exec /usr/sbin/dropbear -- \\$DROPBEAR_ARGS" in text
+    assert "auto-generation" in text
