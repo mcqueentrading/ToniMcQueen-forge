@@ -554,6 +554,8 @@ if [ -s "$DROPBEAR_KEY_DIR/dropbear_rsa_host_key" ] || [ -s "$DROPBEAR_KEY_DIR/d
 
 test -r /etc/default/dropbear && . /etc/default/dropbear
 PIDFILE=/var/run/dropbear.pid
+PATH=/usr/data/anvil/bin:/usr/prog/bin:\$PATH
+export PATH
 : \${DROPBEAR_ARGS:="$DROPBEAR_KEY_ARGS"}
 
 start() {
@@ -568,7 +570,9 @@ start() {
 stop() {
     printf "Stopping dropbear sshd: "
     start-stop-daemon -K -q -p "\$PIDFILE"
-    [ \$? = 0 ] && echo "OK" || echo "FAIL"
+    killall dropbear 2>/dev/null || true
+    rm -f "\$PIDFILE"
+    echo "OK"
 }
 
 restart() {

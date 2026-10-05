@@ -31,6 +31,21 @@ Then log in to Tailscale:
 toniforge-tailscale up --accept-dns=false --hostname=tonimcqueen-forge
 ```
 
+If those helper names are not on `PATH` after an older install, use their
+absolute paths:
+
+```sh
+/usr/data/anvil/bin/toniforge-tailscale-enable
+/usr/data/anvil/bin/toniforge-tailscale up --accept-dns=false --hostname=tonimcqueen-forge
+```
+
+The `up` command prints a login URL. Open it on an admin machine, approve the
+printer, then check status from SSH:
+
+```sh
+toniforge-tailscale status
+```
+
 For Headscale, keep the same printer client and point it at your Headscale
 control server:
 
@@ -47,6 +62,12 @@ interactive login or a short-lived key typed on the printer after installation.
 toniforge-tailscale status
 ```
 
+Fallback path:
+
+```sh
+/usr/data/anvil/bin/toniforge-tailscale status
+```
+
 The daemon log is:
 
 ```text
@@ -57,6 +78,12 @@ The daemon log is:
 
 ```sh
 toniforge-tailscale-disable
+```
+
+Fallback path:
+
+```sh
+/usr/data/anvil/bin/toniforge-tailscale-disable
 ```
 
 This disables the service and runs `tailscale down`. The saved state remains in

@@ -96,6 +96,36 @@ Useful paths:
 | `docs/tailscale-remote-access.md` | Optional Tailscale/Headscale remote-access setup |
 | `local/creator5pro-orca-imagemap-profiles/` | Local Orca/ImageMap profiles |
 
+## Remote Access Quick Start
+
+Tailscale is installed but disabled until the owner enables it. The installer
+does not ship Wi-Fi passwords, Tailscale auth keys, or tailnet state.
+
+After flashing, SSH to the printer and run:
+
+```bash
+toniforge-tailscale-enable
+toniforge-tailscale up --accept-dns=false --hostname=tonimcqueen-forge
+toniforge-tailscale status
+```
+
+If an older install does not expose those commands on `PATH`, use:
+
+```bash
+/usr/data/anvil/bin/toniforge-tailscale-enable
+/usr/data/anvil/bin/toniforge-tailscale up --accept-dns=false --hostname=tonimcqueen-forge
+/usr/data/anvil/bin/toniforge-tailscale status
+```
+
+For Headscale:
+
+```bash
+toniforge-tailscale up --login-server=https://HEADSCALE.example --accept-dns=false --hostname=tonimcqueen-forge
+```
+
+The `up` command prints a login URL. Open that URL on an admin machine and
+approve the printer. State is kept in `/usr/data/anvil-data/tailscale/`.
+
 ## Build
 
 Fetch pinned source assets:
@@ -119,7 +149,7 @@ make qa-static
 Known-good local result:
 
 ```text
-367 passed, 1 skipped
+375 passed
 ```
 
 Useful host checks before committing:

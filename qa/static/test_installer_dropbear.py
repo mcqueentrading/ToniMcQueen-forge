@@ -16,3 +16,10 @@ def test_dropbear_host_key_patch_is_idempotent_and_conditional():
     assert ": \\${DROPBEAR_ARGS:=\"$DROPBEAR_KEY_ARGS\"}" in text
     assert "--exec /usr/sbin/dropbear -- \\$DROPBEAR_ARGS" in text
     assert "auto-generation" in text
+
+
+def test_toniforge_helpers_are_exposed_on_ssh_path():
+    text = INSTALLER.read_text()
+
+    assert "PATH=/usr/data/anvil/bin:/usr/prog/bin:\\$PATH" in text
+    assert "export PATH" in text
