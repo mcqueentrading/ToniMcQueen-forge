@@ -1,0 +1,7 @@
+#!/bin/sh
+# Run the Tailscale CLI against this fork's userspace daemon socket.
+MODDIR=/usr/data/anvil
+[ -f "$MODDIR/anvil-env.sh" ] && . "$MODDIR/anvil-env.sh"
+
+STATE_DIR=/usr/data/anvil-data/tailscale
+exec "$MODDIR/bin/tailscale" --socket="$STATE_DIR/tailscaled.sock" "$@"

@@ -1,0 +1,27 @@
+#!/bin/sh
+# Optional Tailscale daemon. Installed by the fork, inactive until the owner
+# creates /usr/data/anvil-data/tailscale/enabled with toniforge-tailscale-enable.
+MODDIR=/usr/data/anvil
+[ -f "$MODDIR/anvil-env.sh" ] && . "$MODDIR/anvil-env.sh"
+
+STATE_DIR=/usr/data/anvil-data/tailscale
+LOG=/usr/data/logs/tailscale.log
+mkdir -p "$STATE_DIR/lib" /usr/data/logs
+exec >>"$LOG" 2>&1
+
+if [ ! -f "$STATE_DIR/enabled" ]; then
+    echo "tailscale: disabled; run toniforge-tailscale-enable then toniforge-tailscale up"
+    exec sleep 3600
+fi
+
+if [ ! -x "$MODDIR/bin/tailscaled" ]; then
+    echo "tailscale: !! no $MODDIR/bin/tailscaled"
+    sleep 5
+    exit 1
+fi
+
+exec "$MODDIR/bin/tailscaled" \
+    --tun=userspace-networking \
+    --state="$STATE_DIR/tailscaled.state" \
+    --statedir="$STATE_DIR/lib" \
+    --socket="$STATE_DIR/tailscaled.sock"

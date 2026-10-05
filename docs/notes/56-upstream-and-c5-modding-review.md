@@ -141,9 +141,10 @@ Useful part:
   present.
 - warns that Moonraker/root access over a tailnet is still sensitive.
 
-Recommendation: do not ship Tailscale in the firmware. Document it as an
-optional operator install, or prefer routing through a stronger external box
-such as the NVIDIA PC.
+Recommendation: ship it only as an optional, disabled-by-default service. Use
+the official static `mipsle` client, run `tailscaled` with
+`--tun=userspace-networking`, keep state under `/usr/data/anvil-data/tailscale`,
+and never bake auth keys into the firmware.
 
 ### Nginx worker reduction
 

@@ -1,0 +1,16 @@
+#!/bin/sh
+# Disable Tailscale and stop the userspace daemon.
+set -e
+MODDIR=/usr/data/anvil
+STATE_DIR=/usr/data/anvil-data/tailscale
+
+if [ -x "$MODDIR/bin/toniforge-tailscale" ]; then
+    "$MODDIR/bin/toniforge-tailscale" down >/dev/null 2>&1 || true
+fi
+rm -f "$STATE_DIR/enabled"
+
+if [ -d "$MODDIR/etc/s6/tailscale" ]; then
+    "$MODDIR/bin/s6-svc" -r "$MODDIR/etc/s6/tailscale" || true
+fi
+
+echo "Tailscale service disabled. State remains in $STATE_DIR."

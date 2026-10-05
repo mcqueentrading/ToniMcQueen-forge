@@ -178,6 +178,12 @@ fi
 get "https://github.com/mainsail-crew/moonraker-timelapse/archive/$TIMELAPSE_VERSION.tar.gz" \
     "$TIMELAPSE_TGZ" "$TIMELAPSE_SHA256"
 
+# Tailscale static binaries. The service we ship is explicitly gated and runs
+# with --tun=userspace-networking, because the Creator 5 family has no tun
+# device on the stock kernel.
+get "https://pkgs.tailscale.com/stable/$TAILSCALE_FILE" \
+    "$TAILSCALE_TGZ" "$TAILSCALE_SHA256"
+
 # The encoder for it. download.videolan.org, not code.videolan.org: the latter
 # is behind bot protection that answers a download with an HTML page.
 get "https://download.videolan.org/pub/videolan/x264/snapshots/x264-$X264_VERSION.tar.bz2" \

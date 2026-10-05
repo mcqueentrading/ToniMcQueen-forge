@@ -46,6 +46,8 @@ Thank you to the Reforge developers and the Creator 5 modding community.
 - Orca/ImageMap printer, process, and CMYW filament profiles.
 - G-code arc fitting test plan for future slicer work.
 - Static tests for the behavior we care about keeping fixed.
+- Optional Tailscale userspace-networking package for remote access without
+  requiring `/dev/net/tun`; disabled until the owner explicitly logs in.
 
 ## Changed Areas
 
@@ -57,6 +59,7 @@ Thank you to the Reforge developers and the Creator 5 modding community.
 [ cameras      ] preserve two camera feeds in the fork
 [ airflow      ] chamber heater, recirculation, aux fan, outside-air cooling policy
 [ ssh/dropbear ] installer-side SSH persistence and safer update handling
+[ tailscale    ] optional userspace-networking client, no baked auth keys
 [ boot         ] ToniMcQueen's Forge boot-screen branding
 [ slicer       ] local Orca/ImageMap profiles, CMYW filament profiles, snapshot profiles
 [ qa           ] static tests for lifecycle, timelapse, toolchange, webcam/fan, arcs, installer
@@ -90,6 +93,7 @@ Useful paths:
 | `docs/notes/56-upstream-and-c5-modding-review.md` | Upstream and Creator 5 modding review |
 | `docs/notes/57-chamber-airflow-policy.md` | Chamber heat versus aux fan policy |
 | `docs/notes/58-gcode-arcs-test-plan.md` | G2/G3 arc fitting plan |
+| `docs/tailscale-remote-access.md` | Optional Tailscale/Headscale remote-access setup |
 | `local/creator5pro-orca-imagemap-profiles/` | Local Orca/ImageMap profiles |
 
 ## Build

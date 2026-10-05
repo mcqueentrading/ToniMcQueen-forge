@@ -1,0 +1,25 @@
+#!/bin/sh
+# Enable the optional Tailscale service without storing auth secrets in firmware.
+set -e
+MODDIR=/usr/data/anvil
+STATE_DIR=/usr/data/anvil-data/tailscale
+
+mkdir -p "$STATE_DIR/lib"
+touch "$STATE_DIR/enabled"
+
+if [ -d "$MODDIR/etc/s6/tailscale" ]; then
+    "$MODDIR/bin/s6-svc" -r "$MODDIR/etc/s6/tailscale" || true
+fi
+
+cat <<EOF
+Tailscale service enabled.
+
+Login with the public control plane:
+  toniforge-tailscale up --accept-dns=false --hostname=tonimcqueen-forge
+
+Login with Headscale instead:
+  toniforge-tailscale up --login-server=https://HEADSCALE.example --accept-dns=false --hostname=tonimcqueen-forge
+
+Status:
+  toniforge-tailscale status
+EOF
