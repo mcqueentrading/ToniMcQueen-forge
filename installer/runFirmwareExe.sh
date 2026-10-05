@@ -632,6 +632,7 @@ ONCEEOF
     chmod +x /usr/prog/etc/init.d/S51dropbear-reforge-once 2>/dev/null || true
     cp -f /usr/prog/etc/init.d/S51dropbear-reforge-once /etc/init.d/S51dropbear-reforge-once 2>/dev/null || true
     chmod +x /etc/init.d/S51dropbear-reforge-once 2>/dev/null || true
+    /etc/init.d/S51dropbear-reforge-once >/tmp/dropbear-reforge-once-launch.log 2>&1 || true
     echo "ssh host keys and clean dropbear init configured under $DROPBEAR_KEY_DIR"
     unset DROPBEAR_KEY_ARGS
 else
