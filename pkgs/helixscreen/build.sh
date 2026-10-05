@@ -22,6 +22,23 @@ _src="$PKG_WORK/src/helixscreen"
 [ -d "$_src" ] || pkg_die \
     "helixscreen: no helixscreen/ directory in $(basename "$HELIX_TGZ")"
 
+# Do not let bundled generic platform helpers start Dropbear with -R. The
+# Creator 5 installer creates persistent host keys and strips -R from the stock
+# init script; keeping this fallback clean avoids regenerating host identities
+# if those helpers are ever reused.
+for _dropbear_file in \
+    "$_src/install.sh" \
+    "$_src/assets/config/platform/hooks-k1.sh"
+do
+    [ -f "$_dropbear_file" ] || continue
+    sed -i \
+        -e 's/"$dropbear_bin" -R/"$dropbear_bin"/g' \
+        -e 's/"$DROPBEAR" -R/"$DROPBEAR"/g' \
+        -e 's/"\\$DROPBEAR" -R/"\\$DROPBEAR"/g' \
+        "$_dropbear_file"
+done
+unset _dropbear_file
+
 pkg_stage "$_src" "helixscreen"
 
 # Our half, staged OVER the unpacked tarball rather than beside it: the
