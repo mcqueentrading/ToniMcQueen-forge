@@ -507,8 +507,8 @@ sync
 # Stock dropbear is started by FlashForge's own init script. On this printer,
 # its default host-key location can be volatile, which makes OpenSSH warn that
 # the host identity changed after normal firmware/mod work. Put host keys under
-# /usr/data and remove the stock -R auto-generate flag, so the same host keys
-# are used after normal reboots and reflashes.
+# /usr/data and replace the stock init outright, so normal reboots and reflashes
+# always use the same keys and never pass -R.
 DROPBEAR_KEY_DIR=/usr/data/dropbear
 mkdir -p "$DROPBEAR_KEY_DIR" 2>/dev/null
 chmod 700 "$DROPBEAR_KEY_DIR" 2>/dev/null || true
@@ -521,7 +521,25 @@ if [ ! -s "$DROPBEAR_KEY_DIR/dropbear_ecdsa_host_key" ] && command -v dropbearke
 fi
 
 if [ -s "$DROPBEAR_KEY_DIR/dropbear_rsa_host_key" ] || [ -s "$DROPBEAR_KEY_DIR/dropbear_ecdsa_host_key" ]; then
+    # First remove every Dropbear file this installer owns or used to patch.
+    # Host keys are deliberately kept in /usr/data/dropbear: they are the
+    # persistent identity, not stale code.
+    for _dropbear_old in \
+        /etc/init.d/S50dropbear \
+        /usr/prog/etc/init.d/S50dropbear \
+        /etc/init.d/S50dropbear.anvil-before-persistent-hostkeys \
+        /usr/prog/etc/init.d/S50dropbear.anvil-before-persistent-hostkeys \
+        /etc/init.d/S50dropbear.anvil-new \
+        /usr/prog/etc/init.d/S50dropbear.anvil-new \
+        /etc/default/dropbear \
+        /usr/prog/etc/default/dropbear
+    do
+        rm -f "$_dropbear_old" 2>/dev/null || true
+    done
+    unset _dropbear_old
+
     mkdir -p /etc/default 2>/dev/null || true
+    mkdir -p /usr/prog/etc/default /usr/prog/etc/init.d 2>/dev/null || true
     DROPBEAR_KEY_ARGS=""
     if [ -s "$DROPBEAR_KEY_DIR/dropbear_rsa_host_key" ]; then
         DROPBEAR_KEY_ARGS="-r $DROPBEAR_KEY_DIR/dropbear_rsa_host_key"
@@ -537,18 +555,13 @@ if [ -s "$DROPBEAR_KEY_DIR/dropbear_rsa_host_key" ] || [ -s "$DROPBEAR_KEY_DIR/d
         echo '# Reforge local: keep SSH host identity stable across normal reboot.'
         printf 'DROPBEAR_ARGS="%s"\n' "$DROPBEAR_KEY_ARGS"
     } > /etc/default/dropbear 2>/dev/null || echo "!! could not write /etc/default/dropbear"
+    cp -f /etc/default/dropbear /usr/prog/etc/default/dropbear 2>/dev/null || true
     chmod 600 "$DROPBEAR_KEY_DIR"/dropbear_*_host_key 2>/dev/null || true
-    echo "ssh host keys configured under $DROPBEAR_KEY_DIR"
 
-    # FlashForge's stock init can pass -R to dropbear, which tells it to
-    # auto-generate host keys. Replace that fragile script with a small
-    # idempotent init script that reads /etc/default/dropbear and never uses
-    # -R. Avoid sed-rewriting the stock shell: comments and tests mention
-    # dropbear too, and broad substitutions can corrupt the script.
-    for _dropbear_init in /etc/init.d/S50dropbear /usr/prog/etc/init.d/S50dropbear; do
-        [ -f "$_dropbear_init" ] || continue
-        cp "$_dropbear_init" "$_dropbear_init.anvil-before-persistent-hostkeys" 2>/dev/null || true
-        cat > "$_dropbear_init.anvil-new" << INITEOF
+    # FlashForge's stock init can pass -R, which tells dropbear to
+    # auto-generate host keys. Do not patch or sed-rewrite it: uninstall the
+    # old init above, then install this known-good script every time.
+    cat > /usr/prog/etc/init.d/S50dropbear << INITEOF
 #!/bin/sh
 # Reforge local: persistent Dropbear host keys, no -R auto-generation.
 
@@ -598,11 +611,10 @@ esac
 
 exit 0
 INITEOF
-        [ -s "$_dropbear_init.anvil-new" ] &&
-            mv "$_dropbear_init.anvil-new" "$_dropbear_init" 2>/dev/null &&
-            chmod +x "$_dropbear_init" 2>/dev/null || true
-    done
-    unset _dropbear_init
+    chmod +x /usr/prog/etc/init.d/S50dropbear 2>/dev/null || true
+    cp -f /usr/prog/etc/init.d/S50dropbear /etc/init.d/S50dropbear 2>/dev/null || true
+    chmod +x /etc/init.d/S50dropbear 2>/dev/null || true
+    echo "ssh host keys and clean dropbear init configured under $DROPBEAR_KEY_DIR"
     unset DROPBEAR_KEY_ARGS
 else
     echo "!! dropbear host keys not configured -- no dropbearkey or key generation failed"
