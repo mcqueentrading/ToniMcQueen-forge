@@ -23,3 +23,5 @@ def test_toniforge_helpers_are_exposed_on_ssh_path():
 
     assert "PATH=/usr/data/anvil/bin:/usr/prog/bin:\\$PATH" in text
     assert "export PATH" in text
+    assert "for _helper in toniforge-tailscale toniforge-tailscale-enable toniforge-tailscale-disable" in text
+    assert 'ln -sf "$MODDIR/bin/$_helper" "/usr/prog/bin/$_helper"' in text
