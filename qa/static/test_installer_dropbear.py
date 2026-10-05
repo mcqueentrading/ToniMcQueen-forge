@@ -17,6 +17,10 @@ def test_dropbear_host_key_patch_is_idempotent_and_conditional():
     assert "rm -f \"$_dropbear_old\"" in text
     assert "cat > /usr/prog/etc/init.d/S50dropbear << INITEOF" in text
     assert "cp -f /usr/prog/etc/init.d/S50dropbear /etc/init.d/S50dropbear" in text
+    assert "cat > /usr/prog/etc/init.d/S51dropbear-reforge-once << 'ONCEEOF'" in text
+    assert "sleep 20" in text
+    assert "/etc/init.d/S50dropbear restart >/tmp/dropbear-reforge-once.log 2>&1" in text
+    assert "rm -f /etc/init.d/S51dropbear-reforge-once /usr/prog/etc/init.d/S51dropbear-reforge-once" in text
     assert "test -r /etc/default/dropbear && . /etc/default/dropbear" in text
     assert ": \\${DROPBEAR_ARGS:=\"$DROPBEAR_KEY_ARGS\"}" in text
     assert "--exec /usr/sbin/dropbear -- \\$DROPBEAR_ARGS" in text

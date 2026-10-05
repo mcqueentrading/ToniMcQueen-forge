@@ -531,6 +531,8 @@ if [ -s "$DROPBEAR_KEY_DIR/dropbear_rsa_host_key" ] || [ -s "$DROPBEAR_KEY_DIR/d
         /usr/prog/etc/init.d/S50dropbear.anvil-before-persistent-hostkeys \
         /etc/init.d/S50dropbear.anvil-new \
         /usr/prog/etc/init.d/S50dropbear.anvil-new \
+        /etc/init.d/S51dropbear-reforge-once \
+        /usr/prog/etc/init.d/S51dropbear-reforge-once \
         /etc/default/dropbear \
         /usr/prog/etc/default/dropbear
     do
@@ -614,6 +616,22 @@ INITEOF
     chmod +x /usr/prog/etc/init.d/S50dropbear 2>/dev/null || true
     cp -f /usr/prog/etc/init.d/S50dropbear /etc/init.d/S50dropbear 2>/dev/null || true
     chmod +x /etc/init.d/S50dropbear 2>/dev/null || true
+    cat > /usr/prog/etc/init.d/S51dropbear-reforge-once << 'ONCEEOF'
+#!/bin/sh
+# Reforge local: one-shot restart so the clean S50dropbear replaces any stock
+# dropbear -R daemon that was already started earlier in this boot.
+
+(
+    sleep 20
+    /etc/init.d/S50dropbear restart >/tmp/dropbear-reforge-once.log 2>&1 || true
+    rm -f /etc/init.d/S51dropbear-reforge-once /usr/prog/etc/init.d/S51dropbear-reforge-once
+) &
+
+exit 0
+ONCEEOF
+    chmod +x /usr/prog/etc/init.d/S51dropbear-reforge-once 2>/dev/null || true
+    cp -f /usr/prog/etc/init.d/S51dropbear-reforge-once /etc/init.d/S51dropbear-reforge-once 2>/dev/null || true
+    chmod +x /etc/init.d/S51dropbear-reforge-once 2>/dev/null || true
     echo "ssh host keys and clean dropbear init configured under $DROPBEAR_KEY_DIR"
     unset DROPBEAR_KEY_ARGS
 else
