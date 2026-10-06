@@ -3,6 +3,8 @@ from lib.paths import ROOT
 
 INSTALLER = ROOT / "installer" / "runFirmwareExe.sh"
 LINK_PROG = ROOT / "pkgs" / "anvil-core" / "payload" / "bin" / "anvil-link-prog.sh"
+DROPBEAR_FIX = ROOT / "pkgs" / "anvil-core" / "payload" / "etc" / "s6-rc" / "source" / "dropbear-fix"
+OK_ALL_DROPBEAR_FIX = ROOT / "pkgs" / "anvil-core" / "payload" / "etc" / "s6-rc" / "source" / "ok-all" / "contents.d" / "dropbear-fix"
 
 
 def test_dropbear_host_key_patch_is_idempotent_and_conditional():
@@ -22,19 +24,25 @@ def test_dropbear_host_key_patch_is_idempotent_and_conditional():
     assert "rm -f /usr/data/zmod/zmod/.shell/S60dropbear /usr/data/zmod/zmod/.shell/eabi/dropbear" in text
     assert "rm -f /etc/init.d/S98zmod-dropbear-clean-once /usr/prog/etc/init.d/S98zmod-dropbear-clean-once" in text
     assert "/etc/init.d/S98zmod-dropbear-clean-once >/tmp/zmod-dropbear-clean-once-launch.log 2>&1" in text
-    assert "cat > /usr/prog/etc/init.d/S99dropbear-reforge-once << 'ONCEEOF'" in text
-    assert "sleep 20" in text
-    assert "for attempt in 1 2 3 4 5 6" in text
-    assert "/etc/init.d/S50dropbear restart >> \"$LOG\" 2>&1" in text
-    assert "grep -q -- ' -R'" in text
-    assert "success, no dropbear -R remains" in text
-    assert "failed: leaving one-shot installed for next boot" in text
-    assert "rm -f /etc/init.d/S99dropbear-reforge-once /usr/prog/etc/init.d/S99dropbear-reforge-once" in text
-    assert "/etc/init.d/S99dropbear-reforge-once >/tmp/dropbear-reforge-once-launch.log 2>&1" in text
+    assert "S99dropbear-reforge-once" in text
     assert "test -r /etc/default/dropbear && . /etc/default/dropbear" in text
     assert ": \\${DROPBEAR_ARGS:=\"$DROPBEAR_KEY_ARGS\"}" in text
     assert "--exec /usr/sbin/dropbear -- \\$DROPBEAR_ARGS" in text
     assert "auto-generation" in text
+
+
+def test_dropbear_fix_is_in_the_boot_graph():
+    up = (DROPBEAR_FIX / "up").read_text()
+
+    assert (DROPBEAR_FIX / "type").read_text().strip() == "oneshot"
+    assert (DROPBEAR_FIX / "timeout-up").read_text().strip() == "60000"
+    assert (DROPBEAR_FIX / "dependencies.d" / "wifi").is_file()
+    assert OK_ALL_DROPBEAR_FIX.is_file()
+    assert "sleep 20" in up
+    assert "grep '[d]ropbear' | grep -q -- ' -R'" in up
+    assert "/etc/init.d/S50dropbear restart" in up
+    assert "/etc/init.d/S50dropbear start" in up
+    assert "dropbear-fix: OK no -R daemon present" in up
 
 
 def test_toniforge_helpers_are_exposed_on_ssh_path():

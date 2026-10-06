@@ -504,11 +504,11 @@ find /usr/prog/klipper/klippy -name '__pycache__' -type d -exec rm -rf {} + 2>/d
 sync
 
 # ---- persistent ssh host keys ---------------------------------------------
-# Stock dropbear is started by FlashForge's own init script. On this printer,
-# its default host-key location can be volatile, which makes OpenSSH warn that
-# the host identity changed after normal firmware/mod work. Put host keys under
-# /usr/data and replace the stock init outright, so normal reboots and reflashes
-# always use the same keys and never pass -R.
+# Stock Dropbear is started by FlashForge's own init script before the mod boot
+# graph runs. On this printer, its default host-key location can be volatile,
+# which makes OpenSSH warn that the host identity changed after normal
+# firmware/mod work. Put host keys under /usr/data and install a clean init; the
+# s6-rc dropbear-fix service restarts the stock -R daemon late in boot.
 DROPBEAR_KEY_DIR=/usr/data/dropbear
 mkdir -p "$DROPBEAR_KEY_DIR" 2>/dev/null
 chmod 700 "$DROPBEAR_KEY_DIR" 2>/dev/null || true
@@ -643,36 +643,6 @@ ZMODEOF
     cp -f /usr/prog/etc/init.d/S98zmod-dropbear-clean-once /etc/init.d/S98zmod-dropbear-clean-once 2>/dev/null || true
     chmod +x /etc/init.d/S98zmod-dropbear-clean-once 2>/dev/null || true
     /etc/init.d/S98zmod-dropbear-clean-once >/tmp/zmod-dropbear-clean-once-launch.log 2>&1 || true
-    cat > /usr/prog/etc/init.d/S99dropbear-reforge-once << 'ONCEEOF'
-#!/bin/sh
-# Reforge local: one-shot late restart so the clean S50dropbear replaces any
-# stock dropbear -R daemon that was already started earlier in this boot.
-
-(
-    LOG=/tmp/dropbear-reforge-once.log
-    sleep 20
-    echo "dropbear one-shot start $(date)" > "$LOG"
-    for attempt in 1 2 3 4 5 6; do
-        echo "attempt $attempt: restarting clean dropbear" >> "$LOG"
-        /etc/init.d/S50dropbear restart >> "$LOG" 2>&1 || true
-        sleep 5
-        if ps w | grep '[d]ropbear' | grep -q -- ' -R'; then
-            echo "attempt $attempt: still saw dropbear -R" >> "$LOG"
-        else
-            echo "attempt $attempt: success, no dropbear -R remains" >> "$LOG"
-            rm -f /etc/init.d/S99dropbear-reforge-once /usr/prog/etc/init.d/S99dropbear-reforge-once
-            exit 0
-        fi
-    done
-    echo "failed: leaving one-shot installed for next boot" >> "$LOG"
-) &
-
-exit 0
-ONCEEOF
-    chmod +x /usr/prog/etc/init.d/S99dropbear-reforge-once 2>/dev/null || true
-    cp -f /usr/prog/etc/init.d/S99dropbear-reforge-once /etc/init.d/S99dropbear-reforge-once 2>/dev/null || true
-    chmod +x /etc/init.d/S99dropbear-reforge-once 2>/dev/null || true
-    /etc/init.d/S99dropbear-reforge-once >/tmp/dropbear-reforge-once-launch.log 2>&1 || true
     echo "ssh host keys and clean dropbear init configured under $DROPBEAR_KEY_DIR"
     unset DROPBEAR_KEY_ARGS
 else

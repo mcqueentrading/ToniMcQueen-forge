@@ -1,0 +1,34 @@
+/bin/sh -c "
+# FlashForge starts stock Dropbear before the mod boot graph. Re-assert the
+# clean persistent-key init late in boot without depending on zmod or an
+# installer-launched background job.
+LOG=/usr/data/logs/dropbear-fix.log
+mkdir -p /usr/data/logs
+echo \"dropbear-fix: start \$(date)\" > \"\$LOG\"
+
+sleep 20
+
+if [ ! -x /etc/init.d/S50dropbear ]; then
+    echo 'dropbear-fix: no /etc/init.d/S50dropbear; leaving stock ssh alone' >> \"\$LOG\"
+    exit 0
+fi
+
+if ps w | grep '[d]ropbear' | grep -q -- ' -R'; then
+    echo 'dropbear-fix: stock -R daemon found; restarting clean Dropbear' >> \"\$LOG\"
+    /etc/init.d/S50dropbear restart >> \"\$LOG\" 2>&1 || true
+elif ! ps w | grep '[d]ropbear' >/dev/null 2>&1; then
+    echo 'dropbear-fix: no daemon found; starting clean Dropbear' >> \"\$LOG\"
+    /etc/init.d/S50dropbear start >> \"\$LOG\" 2>&1 || true
+else
+    echo 'dropbear-fix: Dropbear already running without -R' >> \"\$LOG\"
+fi
+
+sleep 2
+if ps w | grep '[d]ropbear' | grep -q -- ' -R'; then
+    echo 'dropbear-fix: WARNING -R daemon still present after restart' >> \"\$LOG\"
+else
+    echo 'dropbear-fix: OK no -R daemon present' >> \"\$LOG\"
+fi
+
+exit 0
+"
