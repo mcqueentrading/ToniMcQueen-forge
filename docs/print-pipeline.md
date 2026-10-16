@@ -113,6 +113,9 @@ REFORGE_PREFLIGHT BED=55 TOOL=0 NOZZLE=220 TOOLS=0:220,1:220,2:220,3:220 PURGE_L
 ```
 
 It does not home, probe, clear/load mesh, or start the print.
+If a legacy sliced file embeds this macro inside a running print, it must pass
+`ALLOW_PRINTING=1`; normal manual preflight calls should omit it so a second
+purge cannot change tools during an unrelated print.
 
 The Z frame differs from the app's by design. The app applied one absolute
 offset per print; here every `T<n>` grab applies that tool's own

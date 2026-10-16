@@ -28,3 +28,15 @@ def test_resume_rearms_motion_clog_sensor_explicitly():
 
     assert "FF_RUNOUT_ARM SWITCH=1 MOTION=1" in resume
     assert "BASE_RESUME" in resume
+
+
+def test_preflight_passes_explicit_print_context_to_purge():
+    filament = (CONFIG / "ff-filament.cfg").read_text()
+    macros = PRINT_MACROS.read_text()
+    purge = _section(filament, "[gcode_macro PURGE]")
+    preflight = _section(macros, "[gcode_macro REFORGE_PREFLIGHT]")
+
+    assert "ALLOW_PRINTING={allow_printing}" in purge
+    assert "ALLOW_PRINTING={allow_printing}" in preflight
+    assert "default(0)|int" in purge
+    assert "default(0)|int" in preflight
