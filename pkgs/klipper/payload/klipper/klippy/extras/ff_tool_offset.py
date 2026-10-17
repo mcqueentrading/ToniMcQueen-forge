@@ -38,11 +38,10 @@ EXTRUDER_COUNT = 4
 # Constants read from the binary's .rodata (offset-calibration.md section 2):
 NOZZLE_X_SHIFT = 12.5      # @0xdfdba8  tool pass starts at cylinder_x - 12.5
 PROBE_TRAVEL = 14.0        # 7.0 + 7.0 (@0xdfdb98)  ESTOP target = centre +/- 14
-Z_TARGET = -3.0            # our default: the app's own station pass-2 value.
-                           # The app used -5.0 (@0xdfdb8c) for tools and for
-                           # station pass 1; -3 is 1.3 mm below the deepest
-                           # expected trigger and 2 mm less crash depth if the
-                           # plate is still on. Override with z_target.
+Z_TARGET = -5.0            # app's tool and station pass-1 target
+                           # (@0xdfdb8c). The station's second pass uses the
+                           # separate -3.0 target below. The plate check and
+                           # trigger guards still run before any nozzle probe.
 Z_TARGET_STATION_2 = -3.0  # station second Z probe (moveCylinderPos @0x78a610)
 Z_CLEAR = 0.6              # @0xdfdb90  probing height above the Z trigger
 Z_LIFT = 3.0               # @0xdfdba0  lift between the two passes

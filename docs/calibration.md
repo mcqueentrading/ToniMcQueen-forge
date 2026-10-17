@@ -26,8 +26,7 @@ and how those numbers reach a first layer, is
 ## The sequence
 
 ```gcode
-CALIBRATE_TOOL_OFFSETS   ; the whole thing -- homes first if it has to
-SAVE_CONFIG              ; persists it, restarts Klipper
+CALIBRATE_TOOL_OFFSETS   ; calibrates all tools, parks T3, saves, restarts Klipper
 ```
 
 `CALIBRATE_TOOL_OFFSETS` is klipper-toolchanger's documented entry point, so
@@ -55,8 +54,8 @@ SAVE_CONFIG
 gap guard that catches a mis-triggered Z needs `station_z` to compare
 against. Without it the tool pass still runs, with one fewer guard.
 
-The last tool stays mounted when `CALIBRATE_TOOL_OFFSETS` finishes, so a
-`SHAPER_CALIBRATE` afterwards has mass on the carriage.
+`CALIBRATE_TOOL_OFFSETS` parks the final tool before it saves and restarts
+Klipper, so the carriage is empty when the routine finishes.
 
 ---
 

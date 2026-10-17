@@ -5,9 +5,9 @@ DEV="${DEV:-/dev/sda1}"
 DISK="${DISK:-/dev/sda}"
 MOUNT="${MOUNT:-/home/unknown/ff_usb}"
 LABEL="${LABEL:-TONIFORGE}"
-PKG="${PKG:-/home/unknown/Desktop/Documents/3dprints/reforge_firmware_repo/work/out/Creator5Pro-tonimcqueen-forge-20261016.tgz}"
+PKG="${PKG:-/home/unknown/Desktop/Documents/3dprints/reforge_firmware_repo/work/out/Creator5Pro-tonimcqueen-forge-20261017.tgz}"
 PKG_NAME="$(basename "$PKG")"
-EXPECTED_SHA256="${EXPECTED_SHA256:-85f85dce44ab43935545479e94e3670cca68d46bca7c63b2890677526de9bf71}"
+EXPECTED_SHA256="${EXPECTED_SHA256:-2b19b434bad86f9ee1483a019e5f0d95b16f42045d6c5c26cf9ec0935a714212}"
 
 if [[ "$(id -u)" == "0" ]]; then
     AS_ROOT=1
