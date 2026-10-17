@@ -7,7 +7,7 @@ MOUNT="${MOUNT:-/home/unknown/ff_usb}"
 LABEL="${LABEL:-TONIFORGE}"
 PKG="${PKG:-/home/unknown/Desktop/Documents/3dprints/reforge_firmware_repo/work/out/Creator5Pro-tonimcqueen-forge-20261017.tgz}"
 PKG_NAME="$(basename "$PKG")"
-EXPECTED_SHA256="${EXPECTED_SHA256:-2b19b434bad86f9ee1483a019e5f0d95b16f42045d6c5c26cf9ec0935a714212}"
+EXPECTED_SHA256="${EXPECTED_SHA256:-276a2b1f2193166b465f6e8e004abd188552d330f75bac2ed41c963e014635f4}"
 
 if [[ "$(id -u)" == "0" ]]; then
     AS_ROOT=1
