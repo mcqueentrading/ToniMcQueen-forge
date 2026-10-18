@@ -81,7 +81,7 @@ class Park:
     def monotonic(self):
         return 0.0
 
-    def _restore_axis_arg(self, gcmd):
+    def _restore_axis_arg(self, gcmd, default=''):
         return ""
 
     def _wait_moves(self):

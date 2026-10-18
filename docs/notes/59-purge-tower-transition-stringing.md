@@ -33,13 +33,16 @@ identify the mismatch.
 `[ff_toolchange]` now ships:
 
 ```ini
-restore_axis: xy
+select_restore_axis: xy
 restore_feed: 9000
 ```
 
-The toolchanger restores the saved purge-tower XY after a successful grab,
-through the newly applied tool frame. Z is not restored. The first positive E
-move therefore starts at the tower rather than during dock departure.
+The toolchanger restores the saved purge-tower XY only after a successful
+selection, through the newly applied tool frame. `UNSELECT_TOOL` and
+`TOOLCHANGE_PARK` do not restore the purge position by default; the bare
+carriage remains at its dock. Z is not restored. The first positive E move
+therefore starts at the tower rather than during dock departure, without
+adding a post-release move through the purge coordinate frame.
 
 ## Validation
 

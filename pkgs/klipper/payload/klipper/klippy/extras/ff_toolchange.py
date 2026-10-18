@@ -296,11 +296,15 @@ class FFToolchange:
         # [printer] max_accel must not come out of a toolchange faster).
         self.accel_restore = config.getint('accel_restore', None)
 
-        # klipper-toolchanger's RESTORE_AXIS. Empty means restore nothing,
-        # which is what this machine did before the parameter existed: a stock
-        # file's start block places the toolhead itself.
-        self.restore_axis = self._parse_axes(
-            config.get('restore_axis', ''), config.error, 'restore_axis')
+        # Return to the purge-tower XY only after selecting a tool. Parking a
+        # tool must leave the bare carriage at the dock; restoring the purge
+        # position after UNSELECT_TOOL creates an unnecessary frame change.
+        # Keep restore_axis as a compatibility input for older printer.cfg
+        # files, but scope it to selection rather than parking.
+        select_restore = config.get('select_restore_axis',
+                                    config.get('restore_axis', ''))
+        self.select_restore_axis = self._parse_axes(
+            select_restore, config.error, 'select_restore_axis')
         self.restore_feed = config.getint('restore_feed', 9000, minval=1)
 
         # Sensor names.
@@ -595,7 +599,7 @@ class FFToolchange:
 
     def _make_tn(self, index):
         def handler(gcmd):
-            self._toolchange(gcmd, index)
+            self._toolchange(gcmd, index, self.select_restore_axis)
         return handler
 
     def _run(self, script):
@@ -810,8 +814,8 @@ class FFToolchange:
                         % (what, raw))
         return axes
 
-    def _restore_axis_arg(self, gcmd):
-        return self._parse_axes(gcmd.get('RESTORE_AXIS', self.restore_axis),
+    def _restore_axis_arg(self, gcmd, default=''):
+        return self._parse_axes(gcmd.get('RESTORE_AXIS', default),
                                 gcmd.error, 'RESTORE_AXIS')
 
     def _capture_position(self):
@@ -1115,16 +1119,16 @@ class FFToolchange:
     cmd_TOOLCHANGE_help = "Change to tool INDEX=0..3"
 
     def cmd_TOOLCHANGE(self, gcmd):
-        self._toolchange(gcmd, gcmd.get_int('INDEX'))
+        self._toolchange(gcmd, gcmd.get_int('INDEX'),
+                         self.select_restore_axis)
 
-    def _toolchange(self, gcmd, tool):
+    def _toolchange(self, gcmd, tool, default_restore=''):
         if tool < 0 or tool >= EXTRUDER_COUNT:
             raise gcmd.error("TOOLCHANGE: INDEX must be 0..%d, got %d"
                              % (EXTRUDER_COUNT - 1, tool))
-        # Resolved here rather than per command, so T<n> and TOOLCHANGE --
-        # which is what a file actually issues -- honour RESTORE_AXIS and the
-        # [ff_toolchange] restore_axis default the same way SELECT_TOOL does.
-        restore_axis = self._restore_axis_arg(gcmd)
+        # Selection returns to the saved purge-tower position. Parking uses a
+        # separate empty default, so a released tool stays at its dock.
+        restore_axis = self._restore_axis_arg(gcmd, default_restore)
         # Captured before anything moves; replayed only if the change
         # succeeded, since a half-finished sequence has no position worth
         # returning to.
@@ -1403,7 +1407,8 @@ class FFToolchange:
                             " T<n>. RESTORE_AXIS=<xyz> returns the toolhead")
 
     def cmd_SELECT_TOOL(self, gcmd):
-        self._toolchange(gcmd, self._tool_arg(gcmd))
+        self._toolchange(gcmd, self._tool_arg(gcmd),
+                         self.select_restore_axis)
 
     cmd_UNSELECT_TOOL_help = ("Dock the mounted tool; same as"
                               " TOOLCHANGE_PARK. RESTORE_AXIS=<xyz> returns"
@@ -1637,8 +1642,8 @@ class FFToolchange:
 
     cmd_TOOLCHANGE_PARK_help = "Dock whatever tool is currently mounted"
 
-    def cmd_TOOLCHANGE_PARK(self, gcmd):
-        restore_axis = self._restore_axis_arg(gcmd)
+    def cmd_TOOLCHANGE_PARK(self, gcmd, default_restore=''):
+        restore_axis = self._restore_axis_arg(gcmd, default_restore)
         resume = self._capture_position() if restore_axis else None
         try:
             self._wait_moves()
