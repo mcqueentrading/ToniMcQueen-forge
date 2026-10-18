@@ -8,6 +8,13 @@ Photos from the ImageMap calibration print show loose strands near the purge
 or prime strip. The calibration squares themselves do not show the same
 strands.
 
+The earlier Theo print shows the same type of thin lines crossing empty travel
+space between separated model regions, as well as strands around its purge
+strip. This is corroborating evidence, not proof of the exact motion that
+created each line. The source archive is:
+
+`Desktop/Documents/3dprints/theo_child_character/diagnostics/2026-10-16-printing-problems/Printing problems.zip`
+
 ## Hypothesis
 
 After a tool change, the next extrusion may begin before the toolhead reaches
