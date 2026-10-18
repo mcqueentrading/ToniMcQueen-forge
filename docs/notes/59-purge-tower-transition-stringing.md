@@ -15,26 +15,35 @@ created each line. The source archive is:
 
 `Desktop/Documents/3dprints/theo_child_character/diagnostics/2026-10-16-printing-problems/Printing problems.zip`
 
-## Hypothesis
+## Diagnosis
 
-After a tool change, the next extrusion may begin before the toolhead reaches
-the purge tower. If the travel from the swap location to the tower happens
-with extrusion enabled, the filament can be laid across the bed or left as a
-string on the way to the tower.
+The G-code's first `CP TOOLCHANGE WIPE` line contains both the purge-tower
+start coordinates and positive E. That is correct only if `T<n>` has already
+returned to those coordinates. Our ImageMap Creator 5 profile has an empty
+`change_filament_gcode`, while the firmware shipped with `restore_axis` unset,
+so the toolchange ended at the dock and the first purge move could extrude
+while travelling back to the tower.
 
-This is a working hypothesis, not yet a confirmed cause. The camera angle and
-the purge strip also make the exact start point difficult to identify.
+This matches the loose strands seen in both calibration and Theo photos. The
+camera angle alone was not sufficient; the slicer output and firmware contract
+identify the mismatch.
 
-## Controlled test
+## Fix
 
-For the next monitored multi-tool print:
+`[ff_toolchange]` now ships:
 
-1. Check the G-code around one tool change and the following purge-tower move.
-2. Confirm the travel move has no positive E amount before the tower entry.
-3. Confirm the first positive E move occurs inside the tower path.
-4. If a strand still appears, capture the toolhead during the transition and
-   compare it with the G-code sequence.
+```ini
+restore_axis: xy
+restore_feed: 9000
+```
 
-Do not patch the live macro based on the photos alone. The safe fix, if
-confirmed, is to keep extrusion at zero during the travel and perform the
-initial purge/reprime only after the toolhead reaches the tower.
+The toolchanger restores the saved purge-tower XY after a successful grab,
+through the newly applied tool frame. Z is not restored. The first positive E
+move therefore starts at the tower rather than during dock departure.
+
+## Validation
+
+Re-slice a small monitored multi-tool job and inspect one transition. The
+first `CP TOOLCHANGE WIPE` extrusion should begin at the purge-tower start
+coordinate, with the toolhead already there. Stop the print if a strand still
+appears; that would indicate nozzle ooze or a separate slicer travel issue.

@@ -30,3 +30,9 @@ def test_shipped_config_opts_into_controlled_fast_departure():
     config = CONFIG.read_text(encoding="utf-8")
     assert re.search(r"^grab_retreat_feed:\s*1500\s*$", config, re.MULTILINE)
     assert re.search(r"^grab_departure_feed:\s*4800\s*$", config, re.MULTILINE)
+
+
+def test_image_map_toolchange_returns_to_purge_tower_xy():
+    config = CONFIG.read_text(encoding="utf-8")
+    assert re.search(r"^restore_axis:\s*xy\s*$", config, re.MULTILINE)
+    assert re.search(r"^restore_feed:\s*9000\s*$", config, re.MULTILINE)

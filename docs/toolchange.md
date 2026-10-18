@@ -337,9 +337,11 @@ both are derived from the dock and grab sensors.
 replayed after it, X/Y first and Z last so the nozzle is never dragged across
 the part. A G-code position is replayed, not a machine one, so it is read back
 through the offsets in force *after* the change — the new tool's nozzle lands
-where the old one was. The default is `restore_axis` in `[ff_toolchange]`,
-itself empty: nothing is restored unless asked, which is how this machine has
-always behaved. Restoring Z after an `UNSELECT_TOOL` is the sharp edge, since
+where the old one was. This fork ships `restore_axis: xy` because the ImageMap
+Creator 5 profile emits its first purge move immediately after `T<n>`; without
+XY restoration, that first extrusion can run from the dock to the purge tower.
+Z is intentionally excluded: restoring it after an `UNSELECT_TOOL` is the
+sharp edge, since
 parking zeroes the tool offsets and the same G-code Z becomes a different
 machine Z (~3.2 mm, this tool's nozzle-to-station-trigger gap -- the station,
 not the eddy coil; see the note under Calibration).
