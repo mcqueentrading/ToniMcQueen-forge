@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 180" role="img" aria-labelledby="title desc">
+  <title id="title">ToniMcQueen's Forge</title>
+  <desc id="desc">Terminal-style ToniMcQueen's Forge banner.</desc>
+  <rect width="1200" height="180" rx="12" fill="#070b08"/>
+  <rect x="2" y="2" width="1196" height="176" rx="10" fill="none" stroke="#416b49" stroke-width="2"/>
+  <path d="M30 44H1170M30 136H1170" stroke="#1a3420" stroke-width="1"/>
+  <g fill="#426b49" font-family="monospace" font-size="14">
+    <text x="34" y="30">[ TONIMCQUEEN_FORGE ]</text>
+    <text x="1010" y="30">STATUS: READY</text>
+    <text x="34" y="160">creator5pro // imagemap // cmyw</text>
+    <text x="1030" y="160">v20261018</text>
+  </g>
+  <text x="600" y="111" text-anchor="middle" fill="#d4e2d5" font-family="monospace" font-size="43" font-weight="700" letter-spacing="1">ToniMcQueen's Forge</text>
+</svg>
