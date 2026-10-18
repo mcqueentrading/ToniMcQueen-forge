@@ -4,7 +4,7 @@
   <img src="docs/tonimcqueen-forge-banner-v4.svg" alt="ToniMcQueen's Forge holographic Matrix banner" width="1200">
 </p>
 
-> **Latest release:** [`v20261018-creator5pro-local-fullcolour`](https://github.com/mcqueentrading/ToniMcQueen-forge/releases/tag/v20261018-creator5pro-local-fullcolour)<br>
+> **Latest release:** [`v20261018b-creator5pro-local-fullcolour`](https://github.com/mcqueentrading/ToniMcQueen-forge/releases/tag/v20261018b-creator5pro-local-fullcolour)<br>
 > **Release archive:** [GitHub Releases](https://github.com/mcqueentrading/ToniMcQueen-forge/releases)<br>
 > **Current development branch:** `creator5pro-local-fullcolour-tuning`
 
@@ -51,6 +51,7 @@ not promotional renders.
 - Safer `START_PRINT` mesh handling: it does not blindly clear/load meshes unless requested.
 - Full-colour purge/preflight profile work for debugging CMYW tool reliability.
 - Toolchange hardening around dock, grab, release, load, purge, and runout sensor windows.
+- Purge-tower transition fix: restore XY after `T<n>` so the first purge extrusion does not run from the dock.
 - Runout and motion/clog sensor policy so sensors are disarmed only during risky tool handling paths.
 - Snapshot timelapse plumbing for per-print photo evidence and later AI review.
 - Timelapse package patching so raw frames can be zipped and cleaned instead of rendering costly video.
@@ -88,6 +89,18 @@ Control `1.2.9`; it also records the official `kernel-2.0.7` update and its
 rollback warning. That evidence is kept locally in the printer backup, not
 bundled into this repository. The fork does not attempt to downgrade or
 upgrade that kernel component.
+
+## Latest Installer
+
+Download the `Creator5Pro` installer from the assets on the
+[`v20261018b-creator5pro-local-fullcolour` release](https://github.com/mcqueentrading/ToniMcQueen-forge/releases/tag/v20261018b-creator5pro-local-fullcolour).
+This release includes the purge-tower transition fix and remains a slim
+userspace/configuration update: it does not reflash the stock kernel or MCU.
+
+After installing it, reboot the printer or restart Klipper so the updated
+`[ff_toolchange]` configuration is loaded. Reinstallation is required for an
+existing printer to receive `restore_axis: xy`; no kernel downgrade or base
+firmware reflash is needed.
 
 ## Changed Areas
 
