@@ -4,7 +4,7 @@
   <img src="docs/tonimcqueen-forge-banner.svg" alt="ToniMcQueen's Forge Matrix-style banner" width="1200">
 </p>
 
-> **Latest release:** [`v20261005-creator5pro-tailscale`](https://github.com/mcqueentrading/ToniMcQueen-forge/releases/tag/v20261005-creator5pro-tailscale)<br>
+> **Latest release:** [`v20261018-creator5pro-local-fullcolour`](https://github.com/mcqueentrading/ToniMcQueen-forge/releases/tag/v20261018-creator5pro-local-fullcolour)<br>
 > **Release archive:** [GitHub Releases](https://github.com/mcqueentrading/ToniMcQueen-forge/releases)<br>
 > **Current development branch:** `creator5pro-local-fullcolour-tuning`
 
