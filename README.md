@@ -1,7 +1,7 @@
 # ToniMcQueen-forge
 
 <p align="center">
-  <img src="docs/tonimcqueen-forge-banner-v2.svg" alt="ToniMcQueen's Forge terminal-style banner" width="1200">
+  <img src="docs/tonimcqueen-forge-banner-v3.svg" alt="ToniMcQueen's Forge Matrix terminal banner" width="1200">
 </p>
 
 > **Latest release:** [`v20261018-creator5pro-local-fullcolour`](https://github.com/mcqueentrading/ToniMcQueen-forge/releases/tag/v20261018-creator5pro-local-fullcolour)<br>
