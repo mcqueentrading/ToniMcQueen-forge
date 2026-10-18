@@ -49,6 +49,29 @@ Thank you to the Reforge developers and the Creator 5 modding community.
 - Optional Tailscale userspace-networking package for remote access without
   requiring `/dev/net/tun`; disabled until the owner explicitly logs in.
 
+## Firmware Boundary
+
+This fork is a userspace and configuration fork. The normal slim installer
+does **not** replace the FlashForge kernel, root filesystem, control package,
+or MCU firmware. It keeps the stock hardware layer in place and installs our
+Klipper, Moonraker, macros, services, profiles, and diagnostics on top.
+
+FlashForge reports several independent version numbers. Do not treat these as
+interchangeable:
+
+```text
+software package   1.9.x
+kernel package     2.0.x
+control package    1.2.x
+Linux kernel       separate runtime release
+```
+
+The archived factory log records Software `1.9.7`, Kernel `2.0.5`, and
+Control `1.2.9`; it also records the official `kernel-2.0.7` update and its
+rollback warning. That evidence is kept locally in the printer backup, not
+bundled into this repository. The fork does not attempt to downgrade or
+upgrade that kernel component.
+
 ## Changed Areas
 
 ```text
@@ -64,6 +87,14 @@ Thank you to the Reforge developers and the Creator 5 modding community.
 [ slicer       ] local Orca/ImageMap profiles, CMYW filament profiles, snapshot profiles
 [ qa           ] static tests for lifecycle, timelapse, toolchange, webcam/fan, arcs, installer
 ```
+
+The current toolchange implementation applies each calibrated nozzle-to-
+station Z gap as part of the mounted-tool frame, while keeping thermal, bed,
+and first-layer corrections as print-scoped terms. This distinction is
+important: combining those terms incorrectly can drive a nozzle into the bed
+or leave it printing several millimetres above the bed. The implementation
+also refreshes offsets after Klipper becomes ready and before a tool-change
+frame is applied.
 
 This is a practical fork, not a clean-room rewrite. The point is to capture
 the things we changed while tuning a real Creator 5 Pro, then make those
@@ -158,6 +189,11 @@ Useful host checks before committing:
 python3 -m pyflakes qa/static
 git diff --check
 ```
+
+The profile files under `local/creator5pro-orca-imagemap-profiles/` are local
+Orca/ImageMap presets, not proof that a particular live printer has the same
+settings. Validate the generated G-code in Preview and run a monitored first
+layer after any profile, mesh, nozzle, or tool-offset change.
 
 ## Flashing Rules
 

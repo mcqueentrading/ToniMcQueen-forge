@@ -269,7 +269,7 @@
     "0"
   ],
   "machine_pause_gcode": "PAUSE",
-  "machine_start_gcode": "; Reforge / Anvil Creator 5 Pro ImageMap full-colour-safe start gcode\n; Explicit path for local fork: wrapper prepare stays disabled.\n; REFORGE_PREFLIGHT only purges/checks tools; START_PRINT owns homing/mesh/tool grab.\n; LEVEL=0 keeps the active mesh unless START_PRINT is given MESH=<profile>.\nREFORGE_SNAPSHOT_START\nSET_GCODE_VARIABLE MACRO=FF_BEFORE_PRINT_START VARIABLE=prepare VALUE=0\nREFORGE_PREFLIGHT BED=[bed_temperature_initial_layer_single] TOOL=[initial_extruder] NOZZLE=[nozzle_temperature_initial_layer] TOOLS=0:[nozzle_temperature_initial_layer],1:[nozzle_temperature_initial_layer],2:[nozzle_temperature_initial_layer],3:[nozzle_temperature_initial_layer] PURGE_LENGTH=150 PARK=1\nSTART_PRINT BED=[bed_temperature_initial_layer_single] TOOL=[initial_extruder] NOZZLE=[nozzle_temperature_initial_layer] LAYER=[layer_height] LEVEL=0 TOOLS=0:[nozzle_temperature_initial_layer],1:[nozzle_temperature_initial_layer],2:[nozzle_temperature_initial_layer],3:[nozzle_temperature_initial_layer] CLEAN=0 SOAK=0\nM106 P101 S0 ; L+R turbo fan off\nM106 P2 S0 ; center fresh air fan off\nM106 S0 ; model fan off\nM106 P3 S0 ; filter fan off\nG90\nM83\n; Reforge ImageMap full-colour start_gcode end\n",
+  "machine_start_gcode": "; Reforge / Anvil Creator 5 Pro ImageMap full-colour-safe start gcode\n; START_PRINT is the single startup owner: preflight, homing, mesh, tools, purge, and offsets.\n; REFORGE_PREFLIGHT is standalone and must not be called from a sliced print.\nREFORGE_SNAPSHOT_START\nSET_GCODE_VARIABLE MACRO=FF_BEFORE_PRINT_START VARIABLE=prepare VALUE=0\nSTART_PRINT BED=[bed_temperature_initial_layer_single] TOOL=[initial_extruder] NOZZLE=[nozzle_temperature_initial_layer] LAYER=[layer_height] LEVEL=0 TOOLS=0:[nozzle_temperature_initial_layer],1:[nozzle_temperature_initial_layer],2:[nozzle_temperature_initial_layer],3:[nozzle_temperature_initial_layer] CLEAN=1 SOAK=0\nM106 P101 S0 ; L+R turbo fan off\nM106 P2 S0 ; center fresh air fan off\nM106 S0 ; model fan off\nM106 P3 S0 ; filter fan off\nG90\nM83\n; Reforge ImageMap full-colour start_gcode end\n",
   "machine_tool_change_time": "6",
   "machine_unload_filament_time": "0",
   "manual_filament_change": "0",
@@ -320,8 +320,8 @@
   "parking_pos_retraction": "0",
   "part_cooling_fan_min_pwm": "0",
   "pellet_modded_printer": "0",
-  "print_host": "http://192.168.0.113:7125",
-  "print_host_webui": "http://192.168.0.113:81/",
+  "print_host": "http://100.65.18.84:7125",
+  "print_host_webui": "http://100.65.18.84:81/",
   "physical_extruder_map": [
     "0"
   ],

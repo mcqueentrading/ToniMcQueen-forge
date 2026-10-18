@@ -320,8 +320,8 @@
   "parking_pos_retraction": "0",
   "part_cooling_fan_min_pwm": "0",
   "pellet_modded_printer": "0",
-  "print_host": "http://192.168.0.113:7125",
-  "print_host_webui": "http://192.168.0.113:81/",
+  "print_host": "http://100.65.18.84:7125",
+  "print_host_webui": "http://100.65.18.84:81/",
   "physical_extruder_map": [
     "0"
   ],

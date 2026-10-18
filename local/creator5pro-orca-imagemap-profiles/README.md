@@ -47,7 +47,7 @@ The full-colour-safe profile uses this start pattern:
 
 ```gcode
 SET_GCODE_VARIABLE MACRO=FF_BEFORE_PRINT_START VARIABLE=prepare VALUE=0
-REFORGE_PREFLIGHT BED=[bed_temperature_initial_layer_single] TOOL=[initial_extruder] NOZZLE=[nozzle_temperature_initial_layer] TOOLS=0:[nozzle_temperature_initial_layer],1:[nozzle_temperature_initial_layer],2:[nozzle_temperature_initial_layer],3:[nozzle_temperature_initial_layer] PURGE_LENGTH=150 PARK=1
+REFORGE_PREFLIGHT BED=[bed_temperature_initial_layer_single] TOOL=[initial_extruder] NOZZLE=[nozzle_temperature_initial_layer] TOOLS=0:[nozzle_temperature_initial_layer],1:[nozzle_temperature_initial_layer],2:[nozzle_temperature_initial_layer],3:[nozzle_temperature_initial_layer] PURGE_LENGTH=150 PARK=1 ALLOW_PRINTING=1
 START_PRINT BED=[bed_temperature_initial_layer_single] TOOL=[initial_extruder] NOZZLE=[nozzle_temperature_initial_layer] LAYER=[layer_height] LEVEL=0 TOOLS=0:[nozzle_temperature_initial_layer],1:[nozzle_temperature_initial_layer],2:[nozzle_temperature_initial_layer],3:[nozzle_temperature_initial_layer] CLEAN=0 SOAK=0
 ```
 
@@ -88,8 +88,8 @@ is Klipper/Moonraker, not a firmware that consumes arc moves directly.
 The local profile package already points at the current printer address:
 
 ```text
-http://192.168.0.113:7125
-http://192.168.0.113:81/
+http://100.65.18.84:7125
+http://100.65.18.84:81/
 ```
 
 If Orca/ImageMap shows the old `192.168.0.112` Device page after importing a

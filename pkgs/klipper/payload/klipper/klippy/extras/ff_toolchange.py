@@ -135,9 +135,8 @@ class _ToolView:
                 'fan': toolchanger.part_fan,
                 # What the per-tool frame applies while this tool is
                 # mounted (upstream's names). Derived, not stored: X/Y are
-                # differences against the base tool. Z is only the operator's
-                # per-tool z_adjust; the nozzle-to-station calibration gap is
-                # informational and must not be added to normal print moves.
+                # differences against the base tool. Z is absolute against
+                # the station/bed frame: nozzle_z - station_z + z_adjust.
                 'gcode_x_offset': toolchanger.offset_x[self.index],
                 'gcode_y_offset': toolchanger.offset_y[self.index],
                 'gcode_z_offset': toolchanger.offset_z[self.index],
@@ -165,14 +164,15 @@ class _ToolTransform:
     reaches the live frame on its own -- which is what lets a per-tool Z
     tune apply mid-print without a config write.
 
-    Z carries only z_adjust plus job_z, the print-scoped term of
-    TOOLCHANGE_SET_PRINT_OFFSET (thermal expansion, hot bed, first layer).
-    It is global to all tools, but it is not the operator's number and must
-    not share a slot with it: END_PRINT clearing the job term used to clear
-    the babystep with it, since SET_GCODE_OFFSET Z=0 cannot tell the two
-    apart. tool is None -- a bare carriage, or a suspended frame -- means
-    raw machine coordinates, job term included: dock moves and the offset
-    calibration both address the machine, not the print.
+    Z carries the calibrated nozzle/station gap, z_adjust, and job_z, the
+    print-scoped term of TOOLCHANGE_SET_PRINT_OFFSET (thermal expansion, hot
+    bed, first layer). The calibrated gap is per-tool; job_z is global to all
+    tools, but it is not the operator's number and must not share a slot with
+    it: END_PRINT clearing the job term used to clear the babystep with it,
+    since SET_GCODE_OFFSET Z=0 cannot tell the two apart. tool is None -- a
+    bare carriage, or a suspended frame -- means raw machine coordinates;
+    dock moves and the offset calibration both address the machine, not the
+    print.
     """
 
     def __init__(self, toolchange):
@@ -402,26 +402,27 @@ class FFToolchange:
 
             X = nozzle_x[tool] - nozzle_x[base]
             Y = nozzle_y[tool] - nozzle_y[base]
-            Z = z_adjust[tool]
+            Z = nozzle_z[tool] - station_z + z_adjust[tool]
 
         X/Y are DIFFERENCES against a base tool (T0 by default), as
-        CommMgr::setGrabGcodeOffsetMgr @0x77f1dc computes them. Z is only
-        the per-tool user tune, z_adjust. The calibrated
-        nozzle_z - station_z gap is still required for plausibility checks and
-        reporting, but it is not a per-move frame offset on this Klipper port:
-        adding it here raised first-layer moves by almost 3 mm and caused
-        air-printing. The print-only terms (thermal, bed, thin layer) are
-        added by TOOLCHANGE_SET_PRINT_OFFSET on top.
+        CommMgr::setGrabGcodeOffsetMgr @0x77f1dc computes them. Z is the
+        absolute bed-frame gap for the mounted tool plus that tool's user
+        trim. Leaving the calibrated nozzle_z - station_z gap out makes
+        eddy-homed Z several millimetres too low and can drive the nozzle into
+        the plate. The print-only terms (thermal, bed, thin layer) are added
+        by TOOLCHANGE_SET_PRINT_OFFSET on top.
 
         nozzle_* are the station-bore centre measured with each tool's
         nozzle ([ff_tool n], written by TOOL_CALIBRATE_TOOL_OFFSET);
         z_adjust is the user's per-tool Z tune (the app's zoffset.json).
 
-        A tool without a calibration contributes no measured X/Y offset; Z is
-        still that tool's z_adjust, which is not zero if one was ever set.
-        Such tools are listed by TOOLCHANGE_STATUS / warned about at ready.
-        If the BASE tool is uncalibrated X/Y are zero for every tool, since
-        nothing can be measured against it.
+        Without station_z (TOOL_LOCATE_SENSOR) Z falls back to the app's
+        relative form, nozzle_z[tool] - nozzle_z[base]. A tool without a
+        calibration contributes no MEASURED offset -- X and Y are zero, and Z
+        is that tool's z_adjust, which is not zero if one was ever set. Such
+        tools are listed by TOOLCHANGE_STATUS / warned about at ready. If the
+        BASE tool is uncalibrated X/Y are zero for every tool, since nothing
+        can be measured against it.
         """
         tools = self.tools
         z_station = self._station_z()
@@ -436,7 +437,12 @@ class FFToolchange:
             else:
                 x_offsets.append(0.0)
                 y_offsets.append(0.0)
-            z_offsets.append(tool.z_adjust)
+            if tool.calibrated() and z_station is not None:
+                z_offsets.append(tool.z_adjust + (tool.nozzle[2] - z_station))
+            elif tool.calibrated() and base_ok:
+                z_offsets.append(tool.z_adjust + (tool.nozzle[2] - base_z))
+            else:
+                z_offsets.append(tool.z_adjust)
         return x_offsets, y_offsets, z_offsets
 
     def refresh_offsets(self, gcmd=None):
@@ -561,6 +567,10 @@ class FFToolchange:
 
     def _handle_ready(self):
         self._log_transform_chain()
+        # Some Creator 5 configs expose [ff_tool_offset] only after connect
+        # handlers have run. Re-derive here too so Z uses station_z instead
+        # of falling back to nozzle_z[tool] - nozzle_z[base].
+        self.refresh_offsets()
         # The frame after a restart is whatever is on the carriage: klippy
         # restarts do not drop a tool, and leaving the frame at None would
         # lose the mounted tool's X/Y and per-tool z_adjust.
@@ -1195,17 +1205,17 @@ class FFToolchange:
         carriage at a dock.
 
         offset_x/offset_y are tool-to-tool DIFFERENCES against the base
-        tool; offset_z is only this tool's z_adjust. The measured
-        nozzle-to-station gap is deliberately not applied here because this
-        Klipper frame already prints at the expected bed plane without it.
+        tool; offset_z is the tool's calibrated nozzle-to-station gap plus
+        its per-tool z_adjust. That puts Z=0 at the bed plane whenever a
+        calibrated tool is mounted.
 
         reset_last_position() is not optional: gcode_move caches
         last_position from position_with_transform(), and that cache is
         stale the instant the frame changes."""
         self.gcode_transform.tool = tool
         self._reset_gcode_position()
-        # An uncalibrated tool contributes no measured X/Y, so prints are
-        # gated on calibration. Z remains z_adjust-only either way.
+        # An uncalibrated tool contributes no measured X/Y and only its
+        # z_adjust in Z, so prints are gated on calibration.
         if tool is not None and not self.tools[tool].calibrated():
             self.gcode.respond_info(
                 "ff_toolchange: WARNING: T%d has no nozzle calibration --"
@@ -1258,10 +1268,9 @@ class FFToolchange:
         against the fixed under-bed sensor. Derivation: docs/notes/40-offsets.md.
 
         Only the JOB terms are set here. The calibrated
-        nozzle_z - station_z gap is reported below for audit, but is not
-        applied to the transform: on this Klipper port it caused first-layer
-        moves to run almost 3 mm above the bed. What is left is global to the
-        job rather than to a tool, which is exactly the layer homing_origin is:
+        nozzle_z - station_z gap is applied by the per-tool transform on every
+        grab; what remains here is global to the job rather than to a tool,
+        which is exactly the layer homing_origin is:
 
             SET_GCODE_OFFSET Z = temp + bed + layer   (+ the babystep,
                                                        which stays put)
@@ -1304,6 +1313,8 @@ class FFToolchange:
         nozzles = [tool_object.nozzle or (0.0, 0.0, 0.0)
                    for tool_object in self.tools]
         z_adjusts = [tool_object.z_adjust for tool_object in self.tools]
+        calibrated_gap = nozzles[tool][2] - z_station
+        frame_z = self.offset_z[tool]
         z = (nozzle - 120.0) * temp_coeff
         if bed >= 100.0:
             z += 0.08
@@ -1311,13 +1322,13 @@ class FFToolchange:
         if 0 < int_layer <= 10:
             z += -0.06
         gcmd.respond_info(
-            "print Z offset for T%d: %.3f (temp %+.3f, bed %+.2f,"
-            " layer %+.2f); T%d calibrated gap %+.3f not applied,"
-            " z_adjust %+.3f"
+            "print Z offset for T%d: job %.3f (temp %+.3f, bed %+.2f,"
+            " layer %+.2f); frame Z %+.3f = calibrated gap %+.3f"
+            " + z_adjust %+.3f; effective %+.3f"
             % (tool, z, (nozzle - 120.0) * temp_coeff,
                0.08 if bed >= 100.0 else 0.0,
                -0.06 if 0 < int_layer <= 10 else 0.0,
-               tool, nozzles[tool][2] - z_station, z_adjusts[tool]))
+               frame_z, calibrated_gap, z_adjusts[tool], frame_z + z))
         self.job_z = z
         self._reset_gcode_position()
 
@@ -1419,6 +1430,7 @@ class FFToolchange:
         when the machine is in an unknown state -- which is when it is
         typed."""
         self._wait_moves()
+        self.refresh_offsets()
         mounted, reason = self._current_tool_or_none()
         if mounted is None:
             raise gcmd.error("toolchanger state not derivable: %s" % reason)
