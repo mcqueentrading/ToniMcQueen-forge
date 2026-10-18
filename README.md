@@ -1,5 +1,9 @@
 # ToniMcQueen-forge
 
+> **Latest release:** [`v20261005-creator5pro-tailscale`](https://github.com/mcqueentrading/ToniMcQueen-forge/releases/tag/v20261005-creator5pro-tailscale)<br>
+> **Release archive:** [GitHub Releases](https://github.com/mcqueentrading/ToniMcQueen-forge/releases)<br>
+> **Current development branch:** `creator5pro-local-fullcolour-tuning`
+
 ```text
 01010100 01101111 01101110 01101001 01001101 01100011 01010001 01110101 01100101 01100101 01101110
 
@@ -18,6 +22,15 @@ because the Reforge/Klipper4FlashForge developers did the hard base-port work:
 FlashForge update packaging, Klipper/Moonraker/Mainsail/HelixScreen integration,
 toolchanger support, installer safety, and the Creator 5 documentation base.
 Thank you to the Reforge developers and the Creator 5 modding community.
+
+## Visual Guide
+
+| Printer status | Bed mesh | Calibration |
+|---|---|---|
+| ![HelixScreen print status](docs/helixscreen-print-status.webp) | ![Creator 5 Pro bed mesh](docs/helixscreen-bed-mesh.webp) | ![VFA calibration](docs/vfa-calibration-example.jpg) |
+
+These are real project screenshots and calibration evidence from the fork,
+not promotional renders.
 
 ```text
 [ operator ] ToniMcQueen
