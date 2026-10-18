@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 220" role="img" aria-labelledby="title desc">
+  <title id="title">ToniMcQueen's Forge</title>
+  <desc id="desc">A compact Matrix-inspired neon banner for the ToniMcQueen Forge Creator 5 Pro firmware fork.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#050914"/>
+      <stop offset="0.52" stop-color="#11102b"/>
+      <stop offset="1" stop-color="#210b24"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="0" y1="0" x2="1" y2="0">
+      <stop stop-color="#20f7d4"/>
+      <stop offset="0.33" stop-color="#24a7ff"/>
+      <stop offset="0.66" stop-color="#ff2bd6"/>
+      <stop offset="1" stop-color="#ffe44b"/>
+    </linearGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#22e6c0" stroke-opacity=".12"/>
+    </pattern>
+    <filter id="glow" x="-30%" y="-50%" width="160%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <rect width="1200" height="220" rx="18" fill="url(#bg)"/>
+  <rect x="1.5" y="1.5" width="1197" height="217" rx="16.5" fill="url(#grid)" stroke="url(#edge)" stroke-width="3"/>
+
+  <g font-family="monospace" font-size="16" opacity=".72">
+    <text x="44" y="42" fill="#20f7d4">0101 0011 0100 0100</text>
+    <text x="1030" y="42" fill="#ffe44b">[ ONLINE ]</text>
+    <text x="44" y="190" fill="#8aff5c">&gt; forge.boot / creator5pro</text>
+    <text x="1014" y="190" fill="#ff2bd6">CMYW // IMAGEMAP</text>
+  </g>
+
+  <g filter="url(#glow)" font-family="sans-serif" font-weight="800" text-anchor="middle">
+    <text x="600" y="111" font-size="56" letter-spacing="8" fill="#f5fbff" stroke="#20f7d4" stroke-width="1">TONIMCQUEEN'S</text>
+    <text x="600" y="169" font-size="53" letter-spacing="14" fill="url(#edge)">FORGE</text>
+  </g>
+
+  <path d="M210 184H990" stroke="url(#edge)" stroke-width="2" opacity=".8"/>
+  <circle cx="178" cy="184" r="5" fill="#20f7d4"/>
+  <circle cx="1022" cy="184" r="5" fill="#ff2bd6"/>
+</svg>
