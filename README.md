@@ -4,7 +4,7 @@
   <img src="docs/tonimcqueen-forge-banner-v4.svg" alt="ToniMcQueen's Forge holographic Matrix banner" width="1200">
 </p>
 
-> **Latest release:** [`v20261018b-creator5pro-local-fullcolour`](https://github.com/mcqueentrading/ToniMcQueen-forge/releases/tag/v20261018b-creator5pro-local-fullcolour)<br>
+> **Latest tagged source:** [`v20261018d-creator5pro-local-fullcolour`](https://github.com/mcqueentrading/ToniMcQueen-forge/tree/v20261018d-creator5pro-local-fullcolour)<br>
 > **Release archive:** [GitHub Releases](https://github.com/mcqueentrading/ToniMcQueen-forge/releases)<br>
 > **Current development branch:** `creator5pro-local-fullcolour-tuning`
 
@@ -66,6 +66,53 @@ not promotional renders.
 - Static tests for the behavior we care about keeping fixed.
 - Optional Tailscale userspace-networking package for remote access without
   requiring `/dev/net/tun`; disabled until the owner explicitly logs in.
+
+## Full-Colour Print Contract
+
+The CMYW ImageMap profiles now use a single startup owner:
+
+```text
+Orca/ImageMap G-code -> START_PRINT -> tool preparation -> mesh policy -> print
+```
+
+`REFORGE_PREFLIGHT` is deliberately excluded from sliced start G-code. It is a
+manual diagnostic command for purging and checking tools. Calling it from a
+print can collide with the job state because Moonraker marks the job as
+`printing` before Klipper evaluates the start block.
+
+The profiles use these mutually exclusive mesh modes:
+
+| Mode | Start parameters | Behaviour |
+|---|---|---|
+| Active mesh | `LEVEL=0` | Keep the currently active mesh |
+| Full mesh | `LEVEL=1` | Probe the complete bed once |
+| Adaptive mesh | `ADAPTIVE=1 ADAPTIVE_MARGIN=5` | Probe the sliced-object area once |
+| Saved mesh | `MESH=<profile>` | Load one named saved mesh |
+
+Do not combine `MESH` with `LEVEL=1` or `ADAPTIVE=1`. The macro rejects those
+combinations rather than probing twice or silently replacing a known mesh.
+Keep `[exclude_object]` enabled in the slicer when using adaptive probing so
+Klipper receives the object bounds.
+
+The start path also requests the chamber light through
+`REFORGE_PRINT_LIGHT_ON` and enables snapshot-only timelapse capture. If the
+physical LED does not respond, treat that as a separate hardware/output-pin
+diagnostic; do not add another competing start macro.
+
+## Profile Import And Validation
+
+Import the JSON files from
+`local/creator5pro-orca-imagemap-profiles/` into OrcaSlicer-ImageMap, then
+restart the slicer or reload the machine presets. Before uploading a new job:
+
+1. Confirm the generated start block contains exactly one `START_PRINT`.
+2. Confirm it does not contain `REFORGE_PREFLIGHT` as a start command.
+3. Confirm the intended mesh mode is present and no conflicting mode is set.
+4. Preview layer 0 and inspect the first tool, prime path, and purge tower.
+5. Run a monitored first layer after any nozzle, bed, offset, or profile change.
+
+The repository profiles are versioned presets, not proof that the live printer
+has identical offsets, mesh data, or physical LED behaviour.
 
 ## Firmware Boundary
 

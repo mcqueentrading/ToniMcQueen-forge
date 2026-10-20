@@ -26,7 +26,7 @@ instead of allowing them to drop cold.
 Conservative start G-code uses:
 
 ```gcode
-START_PRINT BED=[bed_temperature_initial_layer_single] TOOL=[initial_extruder] NOZZLE=[nozzle_temperature_initial_layer] LAYER=[layer_height] LEVEL=0 TOOLS=[initial_extruder]:[nozzle_temperature_initial_layer] CLEAN=1 SOAK=0
+START_PRINT BED=[bed_temperature_initial_layer_single] TOOL=[initial_extruder] NOZZLE=[nozzle_temperature_initial_layer] LAYER=[layer_height] LEVEL=0 ADAPTIVE=1 ADAPTIVE_MARGIN=5 TOOLS=[initial_extruder]:[nozzle_temperature_initial_layer] CLEAN=1 SOAK=0
 M104 S[nozzle_temperature_initial_layer] T[initial_extruder]
 M109 S[nozzle_temperature_initial_layer] T[initial_extruder]
 G90
@@ -43,23 +43,31 @@ This is deliberately conservative and intended for a single-tool low-risk test f
 
 ## Full-Colour ImageMap Profile
 
-The full-colour-safe profile uses this start pattern:
+The full-colour-safe profile uses one start owner. It does not call
+`REFORGE_PREFLIGHT` from sliced G-code:
 
 ```gcode
 SET_GCODE_VARIABLE MACRO=FF_BEFORE_PRINT_START VARIABLE=prepare VALUE=0
-REFORGE_PREFLIGHT BED=[bed_temperature_initial_layer_single] TOOL=[initial_extruder] NOZZLE=[nozzle_temperature_initial_layer] TOOLS=0:[nozzle_temperature_initial_layer],1:[nozzle_temperature_initial_layer],2:[nozzle_temperature_initial_layer],3:[nozzle_temperature_initial_layer] PURGE_LENGTH=150 PARK=1 ALLOW_PRINTING=1
-START_PRINT BED=[bed_temperature_initial_layer_single] TOOL=[initial_extruder] NOZZLE=[nozzle_temperature_initial_layer] LAYER=[layer_height] LEVEL=0 TOOLS=0:[nozzle_temperature_initial_layer],1:[nozzle_temperature_initial_layer],2:[nozzle_temperature_initial_layer],3:[nozzle_temperature_initial_layer] CLEAN=0 SOAK=0
+START_PRINT BED=[bed_temperature_initial_layer_single] TOOL=[initial_extruder] NOZZLE=[nozzle_temperature_initial_layer] LAYER=[layer_height] LEVEL=0 ADAPTIVE=1 ADAPTIVE_MARGIN=5 TOOLS=0:[nozzle_temperature_initial_layer],1:[nozzle_temperature_initial_layer],2:[nozzle_temperature_initial_layer],3:[nozzle_temperature_initial_layer] CLEAN=0 SOAK=0
 ```
 
-`REFORGE_PREFLIGHT` is now only a standalone purge/check. It does not call
-`START_PRINT`, home, probe, or load a mesh. The following `START_PRINT` owns
-the actual print setup. Keep `CLEAN=0` there if the standalone preflight already
-purged all participating tools.
+`START_PRINT` owns homing, nozzle cleaning, tool preparation, mesh selection,
+print offsets, and the first tool. `CLEAN=0` is intentional for the ImageMap
+profile because the participating tools are handled by the same print-start
+path. `REFORGE_PREFLIGHT` remains a standalone manual purge/check only; it does
+not belong in sliced start G-code.
 
-Change `LEVEL=0` to `LEVEL=1` only when intentionally probing a fresh mesh. For
-a known bed-side mesh, use `MESH=<profile>` in `START_PRINT`, for example
-`MESH=flipped_bed_20261004`. If neither `LEVEL` nor `MESH` is given, the macro
-leaves the active mesh alone.
+The active profiles use `LEVEL=0 ADAPTIVE=1 ADAPTIVE_MARGIN=5`, which runs one
+adaptive probe using the sliced object's bounds. Keep `[exclude_object]` in
+the generated G-code or Klipper cannot determine those bounds. Use `LEVEL=1`
+instead for one full-bed probe, or use `MESH=<profile>` to load a saved mesh,
+for example `MESH=flipped_bed_20261004`. Do not combine `MESH` with `LEVEL=1`
+or `ADAPTIVE=1`; `START_PRINT` rejects those combinations. If none of these
+options is given, it leaves the active mesh alone.
+
+At every print start the profile requests `REFORGE_PRINT_LIGHT_ON`, and the
+snapshot hook requests it as well. This is idempotent, but the physical LED
+and its wiring still need to be verified separately on the printer.
 
 The full-colour and WarmTools profile variants also own the soft clog sensor
 policy. They call `REFORGE_DISARM_MOTION_SENSORS` during toolchange

@@ -29,10 +29,13 @@ engine thread inside the application. Preparation, in order:
    cool by 100 °C, release
 7. bed and chamber soak, 5 minutes from the bed reaching target, then a
    `G28 Z` re-home
-8. leveling toggle: on → `BED_MESH_CALIBRATE` at `ACCEL=2000` then
-   `BED_MESH_PROFILE LOAD=default`; explicit `MESH=<profile>` loads that
-   profile; otherwise the fork leaves the currently active mesh alone instead
-   of blindly restoring `MESH_DATA`
+8. mesh policy: `LEVEL=1` → full `BED_MESH_CALIBRATE` at `ACCEL=2000` then
+   `BED_MESH_PROFILE LOAD=default`; `ADAPTIVE=1` → one adaptive
+   `BED_MESH_CALIBRATE ADAPTIVE=1`; explicit `MESH=<profile>` loads that
+   saved profile; with none of these, the fork leaves the currently active
+   mesh alone instead of blindly restoring `MESH_DATA`. The macro rejects
+   combinations, so a print cannot run both a full and adaptive probe or probe
+   while loading a saved profile.
 9. heat and grab the first tool, `G1 Z10 F1200` for clearance
 
 Then the absolute print Z offset — the ~3.2 mm eddy-to-nozzle gap, computed
@@ -104,6 +107,11 @@ loads a mesh only when `LEVEL=1` or `MESH=<profile>` is explicit. If neither is
 given, it leaves the currently active mesh alone. This prevents an old
 `MESH_DATA` profile from replacing a freshly probed flipped-bed mesh behind the
 operator's back.
+
+`REFORGE_PRINT_LIGHT_ON` is called at print start and by
+`REFORGE_SNAPSHOT_START`. It sets the chamber LED to full white so still-frame
+timelapse images do not depend on the time of day. It is idempotent and does
+not create a persistent service or affect motion.
 
 `REFORGE_PREFLIGHT` is separate from `START_PRINT`. It is a standalone purge
 and tool check for Fluidd/Mainsail buttons or manual operator use:
