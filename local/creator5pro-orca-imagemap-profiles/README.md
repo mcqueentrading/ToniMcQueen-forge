@@ -65,9 +65,11 @@ for example `MESH=flipped_bed_20261004`. Do not combine `MESH` with `LEVEL=1`
 or `ADAPTIVE=1`; `START_PRINT` rejects those combinations. If none of these
 options is given, it leaves the active mesh alone.
 
-At every print start the profile requests `REFORGE_PRINT_LIGHT_ON`, and the
-snapshot hook requests it as well. This is idempotent, but the physical LED
-and its wiring still need to be verified separately on the printer.
+At every print start the profile sends
+`SET_LED LED=chamber_led WHITE=1.0 TRANSMIT=1`. The explicit `TRANSMIT=1` is
+required by this Creator 5 live configuration; the firmware macro uses the
+same form. The physical LED and its wiring still need to be verified
+separately on the printer.
 
 The full-colour and WarmTools profile variants also own the soft clog sensor
 policy. They call `REFORGE_DISARM_MOTION_SENSORS` during toolchange

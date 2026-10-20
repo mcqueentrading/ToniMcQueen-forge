@@ -94,10 +94,11 @@ combinations rather than probing twice or silently replacing a known mesh.
 Keep `[exclude_object]` enabled in the slicer when using adaptive probing so
 Klipper receives the object bounds.
 
-The start path also requests the chamber light through
-`REFORGE_PRINT_LIGHT_ON` and enables snapshot-only timelapse capture. If the
-physical LED does not respond, treat that as a separate hardware/output-pin
-diagnostic; do not add another competing start macro.
+The start path sends `SET_LED LED=chamber_led WHITE=1.0 TRANSMIT=1` and enables
+snapshot-only timelapse capture. The explicit transmit flag is required by the
+current Creator 5 LED path. If the physical LED still does not respond, treat
+that as a separate hardware/output-pin diagnostic; do not add another
+competing start macro.
 
 ## Profile Import And Validation
 
