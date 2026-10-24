@@ -272,6 +272,9 @@ class FFToolchange:
         self.x_safe = config.getfloat('x_safe', 250.0)
         self.x_approach = config.getfloat('x_approach', 280.0)
         self.grab_pullback = config.getfloat('grab_pullback', 20.0)
+        # Keep the historical F4800 unless explicitly tuned per machine.
+        self.grab_pullback_feed = config.getint(
+            'grab_pullback_feed', PULLBACK_FEED, minval=1)
 
         # Feeds (mm/min). The app reads grabSpeed/grabSpeedSlow (mm/s) from
         # test.json and multiplies by 60 -- 500/90 on this unit, i.e.
@@ -943,10 +946,10 @@ class FFToolchange:
 
                 if self._poll_until(self._grab_sensor, SEAT_TIMEOUT):
                     self._run(self.grab_macro)
-                    # The pullback feed is the app's literal F4800
-                    # (@0x7a9074), NOT the calibrated slow feed.
+                    # Independently configurable; defaults to the app's F4800.
                     self._run('G1 X%.3f F%d'
-                              % (dock_x - self.grab_pullback, PULLBACK_FEED))
+                              % (dock_x - self.grab_pullback,
+                                 self.grab_pullback_feed))
                     self._run(self.grab2_macro)
                     break
 
@@ -1636,6 +1639,7 @@ class FFToolchange:
         lines.append("  fast_feed     %d" % self.fast_feed)
         lines.append("  slow_feed     %d" % self.slow_feed)
         lines.append("  release_slow_feed %d" % self.release_slow_feed)
+        lines.append("  grab_pullback_feed %d" % self.grab_pullback_feed)
         lines.append("  grab_departure_feed %d" % self.grab_departure_feed)
         lines.append("  temp_offset   %.6f" % self.temp_offset)
         gcmd.respond_info("\n".join(lines))
