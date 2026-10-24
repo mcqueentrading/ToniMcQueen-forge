@@ -1,0 +1,12 @@
+--- a/klippy/klippy.py
++++ b/klippy/klippy.py
+@@ -193,5 +193,8 @@
+             self.send_event("klippy:disconnect")
+             #os.system("cmd_mcu write_firmware /usr/prog/libmcu-bare.bin")
+-            os.system("cd /usr/prog/bin && ./wakeup_level")
++            from ff_restart_helper import run_wakeup
++            wakeup = run_wakeup(run_result)
++            if not wakeup['cleanup_complete']:
++                run_result = 'error_exit'
+             #os.system("cmd_mcu bootup")
+         except:

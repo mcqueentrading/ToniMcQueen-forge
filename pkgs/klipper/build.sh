@@ -33,6 +33,10 @@ _top="klipper-$KLIPPER_VERSION"
 [ -f "$PKG_WORK/src/$_top/klippy/chelper/__init__.py" ] || pkg_die \
     "klipper: no klippy/chelper/__init__.py in $(basename "$KLIPPER_TGZ")"
 
+# Patch the pinned source, not a generated work/ copy or the live printer.
+patch --batch --fuzz=0 -p1 -d "$PKG_WORK/src/$_top" \
+    < "$PKG_DIR/payload/patches/bounded-levelboard-wakeup.patch"
+
 # THE LINK LINE IS KLIPPER'S OWN. Every flag below is copied from COMPILE_ARGS
 # in klippy/chelper/__init__.py -- what the printer would use if it could
 # compile, which it cannot: the stock rootfs has no cc, which is why klippy's
@@ -48,6 +52,8 @@ pkg_build "$_top"
 # v20260824-nova-kakhovka and killed klippy at connect with a cffi arg-count
 # error. See docs/notes/20-klipper-fork.md.
 pkg_stage "$PKG_WORK/src/$_top/klippy" "klipper/klippy"
+pkg_stage "$PKG_DIR/payload/klipper/klippy/ff_restart_helper.py" \
+          "klipper/klippy/ff_restart_helper.py"
 
 # Moonraker registers these beside klippy as config_examples and docs when
 # Klipper connects. Ship the matching examples and documentation so both
